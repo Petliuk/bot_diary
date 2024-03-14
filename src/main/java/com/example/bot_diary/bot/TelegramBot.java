@@ -12,7 +12,10 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import java.time.YearMonth;
 
 @Slf4j
 @Component
@@ -40,6 +43,9 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
 
     @Autowired
     CommandHandler commandHandler;
+
+    @Autowired
+    CalendarHandler calendarHandler;
 
     @Autowired
     private DeleteTasksCommandHandler deleteTasksCommandHandler;
@@ -77,6 +83,12 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
         String messageText = update.getMessage().getText();
         NewTaskCommandHandler.UserState currentState = newTaskCommandHandler.getUserStates().getOrDefault(chatId, NewTaskCommandHandler.UserState.NONE);
 
+        if ("/calendar".equals(messageText)) {
+            YearMonth currentMonth = YearMonth.now();
+            SendMessage calendarMessage = calendarHandler.generateCalendarMessage(chatId, currentMonth);
+            execute(calendarMessage);
+        }
+
         switch (messageText) {
             case "/postponed":
                 postponedTasksCommandHandler.handle(update);
@@ -106,6 +118,9 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
 
     private void handleCallbackQuery(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();
+        String callbackQueryId = update.getCallbackQuery().getId();
+        long chatId = update.getCallbackQuery().getMessage().getChatId();
+        int messageId = update.getCallbackQuery().getMessage().getMessageId();
 
         if (StartCommandHandler.CREATE_TASK.equals(callbackData)) {
             newTaskCommandHandler.initiateNewTaskCreation(update.getCallbackQuery().getMessage().getChatId());
@@ -117,7 +132,22 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             completedTasksCommandHandler.handleCallbackQuery(update);
         } else if (callbackData.startsWith("POSTPONE_TASK_")) {
             postponedTasksCommandHandler.handleCallbackQuery(update);
+        }else     if ("save_task".equals(callbackData)) {
+            newTaskCommandHandler.saveTaskAndNotifyUser(update.getCallbackQuery());
+        } else if(callbackData.startsWith("PREVIOUS_MONTH_") || callbackData.startsWith("NEXT_MONTH_")){
+            YearMonth selectedMonth = YearMonth.parse(callbackData.split("_")[2]);
+            // Generate a new calendar message for the selected month
+            SendMessage newCalendarMessage = calendarHandler.generateCalendarMessage(chatId, selectedMonth);
+            // Edit the original message with the new calendar
+            EditMessageText editMessageText = new EditMessageText();
+            editMessageText.setChatId(String.valueOf(chatId));
+            editMessageText.setMessageId(messageId);
+            editMessageText.setText(newCalendarMessage.getText());
+            editMessageText.setReplyMarkup((InlineKeyboardMarkup) newCalendarMessage.getReplyMarkup());
+
+            execute(editMessageText);
         }
+
     }
 
     private void handleCommand(Update update, String command) throws TelegramApiException {
