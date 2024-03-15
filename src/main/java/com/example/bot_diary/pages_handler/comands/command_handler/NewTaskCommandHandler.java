@@ -16,6 +16,10 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +30,9 @@ public class NewTaskCommandHandler {
     public enum UserState {
         NONE,
         AWAITING_TASK_DESCRIPTION,
-        TASK_CREATED // новий стан для обробки після створення задачі
+        TASK_CREATED,
+        AWAITING_NOTIFICATION_DATE, // Чекає на вибір дати
+        AWAITING_NOTIFICATION_TIME // Новий стан - чекає на вибір часу
     }
     private final Map<Long, String> taskDescriptions = new HashMap<>();
 
@@ -41,6 +47,9 @@ public class NewTaskCommandHandler {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    CalendarHandler calendarHandler;
 
     private final Map<Long, UserState> userStates = new HashMap<>();
 
@@ -134,4 +143,42 @@ public class NewTaskCommandHandler {
         // Відправлення повідомлення користувачу
         botService.sendMessage(chatId, "Ваша задача збережена.");
     }
+
+    public void promptForNotificationDate(CallbackQuery callbackQuery) throws TelegramApiException {
+        Long chatId = callbackQuery.getMessage().getChatId();
+        userStates.put(chatId, UserState.AWAITING_NOTIFICATION_DATE);
+
+        // Виклик метода для відображення календаря
+        SendMessage calendarMessage = calendarHandler.generateCalendarMessage(chatId, YearMonth.now());
+        botService.sendMessage(calendarMessage);
+    }
+
+    public void saveTaskWithNotificationDate(CallbackQuery callbackQuery) throws TelegramApiException {
+        Long chatId = callbackQuery.getMessage().getChatId();
+        String callbackData = callbackQuery.getData();
+        int dayOfMonth = Integer.parseInt(callbackData.substring(3)); // Витягуємо число з DAYXX
+
+        // Знаходимо опис задачі
+        String taskDescription = taskDescriptions.remove(chatId);
+
+        // Визначаємо обрану дату
+        YearMonth currentMonth = YearMonth.now(); // Або отримати з контексту
+        LocalDate notificationDate = currentMonth.atDay(dayOfMonth);
+
+        // Створення та збереження задачі з обраною датою
+        User user = userService.findOrCreateUser(chatId);
+        Task task = new Task();
+        task.setDescription(taskDescription);
+        task.setUser(user);
+        task.setStatus(TaskStatus.NOT_COMPLETED);
+        task.setDueDate(notificationDate); // Встановлення дати сповіщення
+        taskService.saveTask(task);
+
+        userStates.put(chatId, UserState.NONE); // Очищення стану користувача
+
+        botService.sendMessage(chatId, "Ваша задача зі сповіщенням збережена.");
+    }
+
+
+
 }

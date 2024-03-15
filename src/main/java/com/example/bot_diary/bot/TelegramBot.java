@@ -26,6 +26,10 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
 
     @Autowired
     CompletedTasksCommandHandler completedTasksCommandHandler;
+
+    @Autowired
+    TimePickerHandler timePickerHandler;
+
     @Autowired
     PostponedTasksCommandHandler postponedTasksCommandHandler;
 
@@ -90,6 +94,11 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
         }
 
         switch (messageText) {
+            case "/time":
+                // Викликаємо метод для створення і відправлення повідомлення з годинником
+                SendMessage timePickerMessage = timePickerHandler.createHourPickerMessage(chatId);
+                execute(timePickerMessage);
+                break;
             case "/postponed":
                 postponedTasksCommandHandler.handle(update);
                 break;
@@ -118,7 +127,7 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
 
     private void handleCallbackQuery(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();
-        String callbackQueryId = update.getCallbackQuery().getId();
+
         long chatId = update.getCallbackQuery().getMessage().getChatId();
         int messageId = update.getCallbackQuery().getMessage().getMessageId();
 
@@ -146,6 +155,20 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             editMessageText.setReplyMarkup((InlineKeyboardMarkup) newCalendarMessage.getReplyMarkup());
 
             execute(editMessageText);
+        } else if ("continue_creation".equals(callbackData)) {
+            newTaskCommandHandler.promptForNotificationDate(update.getCallbackQuery());
+        }else if (callbackData.startsWith("DAY")) {
+            newTaskCommandHandler.saveTaskWithNotificationDate(update.getCallbackQuery());
+        }else if (callbackData.startsWith("HOUR_")) {
+            int chosenHour = Integer.parseInt(callbackData.substring(5));
+            SendMessage minutePickerMessage = timePickerHandler.createMinutePickerMessage(chatId, chosenHour);
+            execute(minutePickerMessage);
+        } else if (callbackData.startsWith("MINUTE_")) {
+            // Розбір callbackData для отримання вибраних годин і хвилин
+            String[] parts = callbackData.split("_");
+            int chosenHour = Integer.parseInt(parts[1]);
+            int chosenMinute = Integer.parseInt(parts[2]);
+            // Тут ви можете зберігати вибраний час, показувати підтвердження тощо
         }
 
     }
@@ -195,66 +218,4 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
 }
 
 
-
-/*    @Override
-    public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            commandHandler.handleCommand(update);
-        }
-    }
-}*/
-
-
-
-
-
-/*    @Autowired
-    private TaskService taskService;
-
-    @Autowired
-    private UserService userService;
-
-
-    private enum BotState {
-        AWAITING_TASK_DESCRIPTION
-    }
-
- *//*   private final Map<Long, BotState>erStates = us new ConcurrentHashMap<>();*/
-
-
-
-  /*  @Override
-    public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            Long chatId = update.getMessage().getChatId();
-            String messageText = update.getMessage().getText();
-
-            switch (messageText) {
-                case "/newtask":
-                    userStates.put(chatId, BotState.AWAITING_TASK_DESCRIPTION);
-                    sendMessage(chatId, "Введіть опис завдання:");
-                    break;
-                case "/alltasks":
-                    List<Task> tasks = taskService.findAllTasks();
-                    String message = tasks.stream()
-                            .map(task -> task.getId() + ": " + task.getDescription() + " [" + task.getStatus().getDisplayName() + "]")
-                            .collect(Collectors.joining("\n"));
-                    sendMessage(chatId, message.isEmpty() ? "Задачі відсутні." : message);
-                    break;
-                default:
-                    if (userStates.getOrDefault(chatId, null) == BotState.AWAITING_TASK_DESCRIPTION) {
-                        User user = userService.findOrCreateUser(chatId);
-                        Task task = new Task();
-                        task.setDescription(messageText);
-                        task.setUser(user);
-                        task.setStatus(TaskStatus.NOT_COMPLETED);
-                        taskService.saveTask(task);
-
-                        userStates.remove(chatId);
-                        sendMessage(chatId, "Завдання створено!");
-                    }
-                    break;
-            }
-        }
-    }*/
 

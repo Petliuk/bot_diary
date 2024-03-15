@@ -27,8 +27,11 @@ public class SchedulerUtil {
         listOfCommands.add(new BotCommand("/newtask", "Створити нову задачу."));
         listOfCommands.add(new BotCommand("/alltasks", "Усі задачі."));
         listOfCommands.add(new BotCommand("/done", "Виконані задачі."));
-        listOfCommands.add(new BotCommand("/postponed", "Усі Відкладені задачі."));
-        listOfCommands.add(new BotCommand("/calendar", "Мій календар"));
+        listOfCommands.add(new BotCommand("/postponed", "Відкладені задачі."));
+        listOfCommands.add(new BotCommand("/calendar", "Календар"));
+        listOfCommands.add(new BotCommand("/time", "Час"));
+
+
 
         try {
             bot.execute(new SetMyCommands(listOfCommands, new BotCommandScopeDefault(), null));
