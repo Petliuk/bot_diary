@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -29,7 +30,7 @@ public class Task {
 
 
     @Column(name = "due_date")
-    private LocalDateTime dueDate;
+    private LocalDate dueDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_chat_id", nullable = false)
