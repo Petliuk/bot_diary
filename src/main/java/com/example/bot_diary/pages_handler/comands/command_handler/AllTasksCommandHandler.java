@@ -1,6 +1,7 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
 import com.example.bot_diary.models.Task;
+import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.pages_handler.comands.BotService;
 import com.example.bot_diary.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,9 +26,11 @@ public class AllTasksCommandHandler {
     private TaskService taskService;
 
     public void handle(Update update) throws TelegramApiException {
+
+        // Використання chatId для отримання задач конкретного користувача
         long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
-        List<Task> tasks = taskService.findAllTasks();
-        StringBuilder response = new StringBuilder();
+       /* List<Task> tasks = taskService.findAllTasksByUserChatId(chatId);*/
+        List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.NOT_COMPLETED,chatId);
 
         if (tasks.isEmpty()) {
             SendMessage message = new SendMessage();
@@ -62,20 +65,26 @@ public class AllTasksCommandHandler {
                 rowsInline.add(rowInline);
                 markupInline.setKeyboard(rowsInline);
 
-                response.append("ID: ").append(task.getId())
+             /*   response.append("ID: ").append(task.getId())
                         .append("\nОпис: ").append(task.getDescription())
                         .append("\nСтатус: ").append(task.getStatus().getDisplayName())
-                        .append("\n\n");
+                        .append("\n\n");*/
+
+                String messageText = "🗓 Дата: " + task.getDueDate().toLocalDate() + "\n" +
+                        "⏰ Час: " + task.getDueDate().toLocalTime() + "\n" +
+                        "🔖 Статус: " + task.getStatus().getDisplayName() + "\n" +
+                        "📝 Опис: " + task.getDescription() + "\n";
+
 
                 SendMessage message = new SendMessage();
                 message.setChatId(String.valueOf(chatId));
-                message.setText(response.toString());
+                message.setText(messageText);
                 message.setReplyMarkup(markupInline);
                 botService.sendMessage(message);
 
-                response.setLength(0);
             }
         }
 
     }
+
 }

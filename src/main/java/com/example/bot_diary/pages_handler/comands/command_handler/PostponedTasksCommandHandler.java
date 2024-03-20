@@ -26,7 +26,9 @@ public class PostponedTasksCommandHandler {
 
     public void handle(Update update) throws TelegramApiException {
         long chatId = update.getMessage().getChatId();
-        List<Task> tasks = taskService.findAllTasksByStatus(TaskStatus.POSTPONED);
+/*        List<Task> tasks = taskService.findAllTasksByStatus(TaskStatus.POSTPONED);*/
+
+        List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.POSTPONED,chatId);
         if (tasks.isEmpty()) {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
@@ -65,23 +67,6 @@ public class PostponedTasksCommandHandler {
             }
         }
     }
-
-       /* if (tasks.isEmpty()) {
-            response.append("Відкладених задач немає.");
-        } else {
-            for (Task task : tasks) {
-                response.append("ID: ").append(task.getId())
-                        .append("\nОпис: ").append(task.getDescription())
-                        .append("\nСтатус: ").append(task.getStatus().getDisplayName())
-                        .append("\n\n");
-            }
-        }
-
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(response.toString());
-        botService.sendMessage(message);
-    }*/
 
     public void handleCallbackQuery(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();

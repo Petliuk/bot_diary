@@ -16,10 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.YearMonth;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,13 +28,18 @@ public class NewTaskCommandHandler {
         NONE,
         AWAITING_TASK_DESCRIPTION,
         TASK_CREATED,
-        AWAITING_NOTIFICATION_DATE, // Чекає на вибір дати
-        AWAITING_NOTIFICATION_TIME // Новий стан - чекає на вибір часу
+        AWAITING_NOTIFICATION_DATE,
+        AWAITING_NOTIFICATION_TIME // Новий стан
     }
-    private final Map<Long, String> taskDescriptions = new HashMap<>();
 
+
+    private final Map<Long, String> taskDescriptions = new HashMap<>();
+    private final Map<Long, LocalDate> selectedDates = new HashMap<>();
     @Autowired
     private UserService userService;
+
+    @Autowired
+    TimePickerHandler timePickerHandler;
 
     @Autowired
     private BotService botService;
@@ -67,15 +69,10 @@ public class NewTaskCommandHandler {
         UserState currentState = userStates.getOrDefault(chatId, UserState.NONE);
 
         if (currentState != UserState.AWAITING_TASK_DESCRIPTION) {
-            // Якщо ні, ініціюємо створення нової задачі
             initiateNewTaskCreation(chatId);
         } else {
-            // Якщо так, продовжуємо зі створенням задачі
             createTask(update);
         }
-      /*  if (currentState == UserState.AWAITING_TASK_DESCRIPTION) {
-            createTask(update);
-        }*/
     }
 
     private void createTask(Update update) throws TelegramApiException {
@@ -88,9 +85,8 @@ public class NewTaskCommandHandler {
         task.setDescription(update.getMessage().getText());
         task.setUser(user);
         task.setStatus(TaskStatus.NOT_COMPLETED);
-        // Замість збереження задачі, змініть стан і запитайте про наступні кроки
         userStates.put(chatId, UserState.TASK_CREATED);
-        sendOptionsAfterTaskCreation(chatId); // відправте кнопки користувачеві
+        sendOptionsAfterTaskCreation(chatId);
     }
 
     private void sendOptionsAfterTaskCreation(long chatId) throws TelegramApiException {
@@ -125,10 +121,8 @@ public class NewTaskCommandHandler {
     public void saveTaskAndNotifyUser(CallbackQuery callbackQuery) throws TelegramApiException {
         Long chatId = callbackQuery.getMessage().getChatId();
 
-        // Використання збереженого опису задачі
         String taskDescription = taskDescriptions.getOrDefault(chatId, "Опис не знайдено");
 
-        // Створення та збереження задачі з актуальним описом
         User user = userService.findOrCreateUser(chatId);
         Task task = new Task();
         task.setDescription(taskDescription);
@@ -136,11 +130,9 @@ public class NewTaskCommandHandler {
         task.setStatus(TaskStatus.NOT_COMPLETED);
         taskService.saveTask(task);
 
-        // Очистка стану користувача та збереженого опису
         userStates.put(chatId, UserState.NONE);
         taskDescriptions.remove(chatId);
 
-        // Відправлення повідомлення користувачу
         botService.sendMessage(chatId, "Ваша задача збережена.");
     }
 
@@ -148,7 +140,6 @@ public class NewTaskCommandHandler {
         Long chatId = callbackQuery.getMessage().getChatId();
         userStates.put(chatId, UserState.AWAITING_NOTIFICATION_DATE);
 
-        // Виклик метода для відображення календаря
         SendMessage calendarMessage = calendarHandler.generateCalendarMessage(chatId, YearMonth.now());
         botService.sendMessage(calendarMessage);
     }
@@ -156,29 +147,41 @@ public class NewTaskCommandHandler {
     public void saveTaskWithNotificationDate(CallbackQuery callbackQuery) throws TelegramApiException {
         Long chatId = callbackQuery.getMessage().getChatId();
         String callbackData = callbackQuery.getData();
-        int dayOfMonth = Integer.parseInt(callbackData.substring(3)); // Витягуємо число з DAYXX
+        int dayOfMonth = Integer.parseInt(callbackData.substring(3));
 
-        // Знаходимо опис задачі
-        String taskDescription = taskDescriptions.remove(chatId);
-
-        // Визначаємо обрану дату
-        YearMonth currentMonth = YearMonth.now(); // Або отримати з контексту
+        YearMonth currentMonth = YearMonth.now();
         LocalDate notificationDate = currentMonth.atDay(dayOfMonth);
+        selectedDates.put(chatId, notificationDate); // Зберігаємо обрану дату
 
-        // Створення та збереження задачі з обраною датою
-        User user = userService.findOrCreateUser(chatId);
-        Task task = new Task();
-        task.setDescription(taskDescription);
-        task.setUser(user);
-        task.setStatus(TaskStatus.NOT_COMPLETED);
-        task.setDueDate(notificationDate); // Встановлення дати сповіщення
-        taskService.saveTask(task);
-
-        userStates.put(chatId, UserState.NONE); // Очищення стану користувача
-
-        botService.sendMessage(chatId, "Ваша задача зі сповіщенням збережена.");
+        userStates.put(chatId, UserState.AWAITING_NOTIFICATION_TIME);
+        SendMessage timePickerMessage = timePickerHandler.createHourPickerMessage(chatId);
+        botService.sendMessage(timePickerMessage);
     }
 
 
+        public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) throws TelegramApiException {
+            LocalDate notificationDate = selectedDates.get(chatId);
+            if (notificationDate == null) {
+                botService.sendMessage(chatId, "Помилка: Дата не була вибрана.");
+                return;
+            }
 
+            // Створення LocalDateTime без конвертації часової зони
+            LocalDateTime dueDateTime = LocalDateTime.of(notificationDate, LocalTime.of(hour, minute));
+
+            Task task = new Task();
+            task.setDescription(taskDescriptions.get(chatId));
+            task.setUser(userService.findOrCreateUser(chatId));
+            task.setStatus(TaskStatus.NOT_COMPLETED);
+            task.setDueDate(dueDateTime); // Не конвертувати час
+            taskService.saveTask(task);
+
+
+            // Прибирання
+        selectedDates.remove(chatId);
+        taskDescriptions.remove(chatId);
+        userStates.put(chatId, UserState.NONE);
+
+        botService.sendMessage(chatId, "Ваша задача зі сповіщенням за часом збережена.");
+    }
 }
