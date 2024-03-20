@@ -36,7 +36,6 @@ public class TimePickerHandler {
         return message;
     }
 
-    // Потім вибір хвилин
     public SendMessage createMinutePickerMessage(long chatId, int chosenHour) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
@@ -61,7 +60,6 @@ public class TimePickerHandler {
         return message;
     }
 
-    // Вам потрібно додати логіку для обробки вибору години/хвилини та збереження цих даних
 }
 
 

@@ -1,10 +1,13 @@
 package com.example.bot_diary.bot;
 
 import com.example.bot_diary.configuration.BotConfig;
+
+import com.example.bot_diary.models.Task;
+import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.pages_handler.comands.BotService;
-import com.example.bot_diary.pages_handler.comands.CommandHandler;
 import com.example.bot_diary.pages_handler.comands.command_handler.*;
 import com.example.bot_diary.service.MessageService;
+import com.example.bot_diary.service.TaskService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -13,9 +16,13 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -42,12 +49,6 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
     @Autowired
     private AllTasksCommandHandler allTasksCommandHandler;
 
-    ///////*    @Autowired
-    /////////   private AllTasksCallbackHandler callbackQueryHandler;*/
-
-    @Autowired
-    CommandHandler commandHandler;
-
     @Autowired
     CalendarHandler calendarHandler;
 
@@ -56,6 +57,9 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    private TaskService taskService;
 
     @Override
     public String getBotUsername() {
@@ -78,7 +82,6 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             }
         } catch (TelegramApiException e) {
             log.error("Error occurred: " + e.getMessage());
-            // Можливо, ви захочете відправити повідомлення про помилку користувачеві тут
         }
     }
 
@@ -94,11 +97,10 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
         }
 
         switch (messageText) {
-            case "/time":
-                // Викликаємо метод для створення і відправлення повідомлення з годинником
+        /*    case "/time":
                 SendMessage timePickerMessage = timePickerHandler.createHourPickerMessage(chatId);
                 execute(timePickerMessage);
-                break;
+                break;*/
             case "/postponed":
                 postponedTasksCommandHandler.handle(update);
                 break;
@@ -129,6 +131,7 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
         String callbackData = update.getCallbackQuery().getData();
 
         long chatId = update.getCallbackQuery().getMessage().getChatId();
+        NewTaskCommandHandler.UserState currentState = newTaskCommandHandler.getUserStates().getOrDefault(chatId, NewTaskCommandHandler.UserState.NONE);
         int messageId = update.getCallbackQuery().getMessage().getMessageId();
 
         if (StartCommandHandler.CREATE_TASK.equals(callbackData)) {
@@ -141,13 +144,13 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             completedTasksCommandHandler.handleCallbackQuery(update);
         } else if (callbackData.startsWith("POSTPONE_TASK_")) {
             postponedTasksCommandHandler.handleCallbackQuery(update);
-        }else     if ("save_task".equals(callbackData)) {
+        } else if ("save_task".equals(callbackData)) {
             newTaskCommandHandler.saveTaskAndNotifyUser(update.getCallbackQuery());
-        } else if(callbackData.startsWith("PREVIOUS_MONTH_") || callbackData.startsWith("NEXT_MONTH_")){
+        } else if (callbackData.startsWith("PREVIOUS_MONTH_") || callbackData.startsWith("NEXT_MONTH_")) {
             YearMonth selectedMonth = YearMonth.parse(callbackData.split("_")[2]);
-            // Generate a new calendar message for the selected month
+
             SendMessage newCalendarMessage = calendarHandler.generateCalendarMessage(chatId, selectedMonth);
-            // Edit the original message with the new calendar
+
             EditMessageText editMessageText = new EditMessageText();
             editMessageText.setChatId(String.valueOf(chatId));
             editMessageText.setMessageId(messageId);
@@ -157,20 +160,92 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             execute(editMessageText);
         } else if ("continue_creation".equals(callbackData)) {
             newTaskCommandHandler.promptForNotificationDate(update.getCallbackQuery());
-        }else if (callbackData.startsWith("DAY")) {
-            newTaskCommandHandler.saveTaskWithNotificationDate(update.getCallbackQuery());
-        }else if (callbackData.startsWith("HOUR_")) {
+        } else if (callbackData.startsWith("DAY")) {
+            int dayOfMonth = Integer.parseInt(callbackData.substring(3));
+            LocalDate selectedDate = YearMonth.now().atDay(dayOfMonth);
+            List<Task> tasksForDay = taskService.findTasksForDay(selectedDate, chatId);
+
+            if (!tasksForDay.isEmpty() || currentState == NewTaskCommandHandler.UserState.AWAITING_NOTIFICATION_DATE) {
+                if (currentState == NewTaskCommandHandler.UserState.AWAITING_NOTIFICATION_DATE) {
+                    // Користувач хоче створити нову задачу і вибрав дату
+                    newTaskCommandHandler.saveTaskWithNotificationDate(update.getCallbackQuery());
+                } else {
+                    // Користувач хоче переглянути задачі за обраною датою
+             showTasksForSelectedDay(chatId, selectedDate, tasksForDay);
+                }
+            } else {
+                sendMessage(chatId, "Завдань не існує");
+            }
+        } else if (callbackData.startsWith("HOUR_")) {
             int chosenHour = Integer.parseInt(callbackData.substring(5));
             SendMessage minutePickerMessage = timePickerHandler.createMinutePickerMessage(chatId, chosenHour);
             execute(minutePickerMessage);
         } else if (callbackData.startsWith("MINUTE_")) {
-            // Розбір callbackData для отримання вибраних годин і хвилин
             String[] parts = callbackData.split("_");
             int chosenHour = Integer.parseInt(parts[1]);
             int chosenMinute = Integer.parseInt(parts[2]);
-            // Тут ви можете зберігати вибраний час, показувати підтвердження тощо
+            // Тут ваш код для збереження задачі з вибраним часом
+            newTaskCommandHandler.saveTaskWithNotificationTime(chatId, chosenHour, chosenMinute);
         }
+    }
 
+
+   private void showTasksForSelectedDay(long chatId, LocalDate selectedDate, List<Task> tasksForDay) throws TelegramApiException {
+        if (tasksForDay.isEmpty()) {
+            sendMessage(chatId, "На цей день задачі відсутні.");
+        } else {
+            for (Task task : tasksForDay) {
+                InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+                List<InlineKeyboardButton> rowInline = new ArrayList<>();
+
+                InlineKeyboardButton deleteButton = new InlineKeyboardButton();
+                deleteButton.setText("Видалити");
+                deleteButton.setCallbackData("DELETE_TASK_" + task.getId());
+                rowInline.add(deleteButton);
+
+
+                InlineKeyboardButton doneButton = new InlineKeyboardButton();
+                doneButton.setText("Виконано");
+                doneButton.setCallbackData("DONE_TASK_" + task.getId());
+                rowInline.add(doneButton); // Додайте цю кнопку до рядка інлайн-клавіатури
+
+
+                InlineKeyboardButton postponeButton = new InlineKeyboardButton();
+                postponeButton.setText("Відкласти");
+                postponeButton.setCallbackData("POSTPONE_TASK_" + task.getId());
+                rowInline.add(postponeButton); // Додайте цю кнопку до рядка інлайн-клавіатури
+
+
+                rowsInline.add(rowInline);
+                markupInline.setKeyboard(rowsInline);
+
+
+                String messageText = "🗓 Дата: " + task.getDueDate().toLocalDate() + "\n" +
+                        "⏰ Час: " + task.getDueDate().toLocalTime() + "\n" +
+                        "🔖 Статус: " + getTaskStatusText(task.getStatus()) + "\n" +
+                        "📝 Опис: " + task.getDescription() + "\n";
+
+                SendMessage message = new SendMessage();
+                message.setChatId(String.valueOf(chatId));
+                message.setText(messageText);
+                message.setReplyMarkup(markupInline);
+                execute(message);
+            }
+        }
+    }
+
+    private String getTaskStatusText(TaskStatus status) {
+        switch (status) {
+            case NOT_COMPLETED:
+                return "Не виконано";
+            case COMPLETED:
+                return "Виконано";
+            case POSTPONED:
+                return "Відкладено";
+            default:
+                return "Невідомий статус";
+        }
     }
 
     private void handleCommand(Update update, String command) throws TelegramApiException {
@@ -181,7 +256,6 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             case "/alltasks":
                 allTasksCommandHandler.handle(update);
                 break;
-            // Додайте інші команди тут, якщо потрібно
         }
     }
 
@@ -189,7 +263,7 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
     public void sendMessage(Long chatId, String text) {
         if (text == null || text.isEmpty()) {
             log.error("Attempted to send empty message to chatId: " + chatId);
-            return; // Просто повернутися, не намагаючись відправити повідомлення
+            return;
         }
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));

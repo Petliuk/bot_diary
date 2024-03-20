@@ -1,5 +1,7 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
+import com.example.bot_diary.service.TaskService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -15,6 +17,10 @@ import java.util.Locale;
 @Component
 public class CalendarHandler {
 
+    @Autowired
+    private TaskService taskService;
+
+
     public SendMessage generateCalendarMessage(long chatId, YearMonth currentMonth) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
@@ -26,9 +32,7 @@ public class CalendarHandler {
         List<List<InlineKeyboardButton>> keyboardRows = new ArrayList<>();
 
         keyboardRows.add(createWeekDaysHeader());
-
-        keyboardRows.addAll(createDaysButtons(currentMonth));
-
+        keyboardRows.addAll(createDaysButtons(currentMonth, chatId));
         keyboardRows.add(createNavigationRow(currentMonth));
 
         inlineKeyboardMarkup.setKeyboard(keyboardRows);
@@ -36,7 +40,6 @@ public class CalendarHandler {
 
         return message;
     }
-
     private List<InlineKeyboardButton> createWeekDaysHeader() {
         String[] weekDays = {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"};
         List<InlineKeyboardButton> weekDaysRow = new ArrayList<>();
@@ -49,16 +52,15 @@ public class CalendarHandler {
         return weekDaysRow;
     }
 
-    private List<List<InlineKeyboardButton>> createDaysButtons(YearMonth currentMonth) {
+    private List<List<InlineKeyboardButton>> createDaysButtons(YearMonth currentMonth, long chatId) {
+        // Тепер chatId доступний для використання в цьому методі
+        List<LocalDate> datesWithTasks = taskService.findDatesWithTasks(currentMonth, chatId);
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         LocalDate date = currentMonth.atDay(1);
         int lengthOfMonth = currentMonth.lengthOfMonth();
-        // Use getDayOfWeek().getValue() directly
         int dayOfWeek = date.getDayOfWeek().getValue();
 
         List<InlineKeyboardButton> weekRow = new ArrayList<>();
-        // Padding for days of the week
-        // Subtract 1 because in Java, Monday is 1 and Sunday is 7
         for (int i = 1; i < dayOfWeek; i++) {
             InlineKeyboardButton button = new InlineKeyboardButton();
             button.setText(" ");
@@ -71,11 +73,14 @@ public class CalendarHandler {
             dayOfWeek = date.getDayOfWeek().getValue();
 
             InlineKeyboardButton dayButton = new InlineKeyboardButton();
-            dayButton.setText(String.format("%02d", dayOfMonth));
+            String dayButtonText = String.format("%02d", dayOfMonth);
+            if (datesWithTasks.contains(date)) {
+                dayButtonText = "✓ " + dayButtonText; // Виділяємо день з задачами
+            }
+            dayButton.setText(dayButtonText);
             dayButton.setCallbackData("DAY" + dayOfMonth);
             weekRow.add(dayButton);
 
-            // When dayOfWeek is 7 (Sunday), start a new row
             if (dayOfWeek == 7 || dayOfMonth == lengthOfMonth) {
                 rows.add(weekRow);
                 weekRow = new ArrayList<>();

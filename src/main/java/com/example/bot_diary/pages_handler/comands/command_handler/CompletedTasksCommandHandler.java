@@ -26,7 +26,7 @@ public class CompletedTasksCommandHandler {
 
     public void handle(Update update) throws TelegramApiException {
         long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
-        List<Task> tasks = taskService.findAllTasksByStatus(TaskStatus.COMPLETED);
+        List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.COMPLETED,chatId);
 
         if (tasks.isEmpty()) {
             SendMessage message = new SendMessage();
