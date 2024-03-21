@@ -101,10 +101,6 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
         }
 
         switch (messageText) {
-        /*    case "/time":
-                SendMessage timePickerMessage = timePickerHandler.createHourPickerMessage(chatId);
-                execute(timePickerMessage);
-                break;*/
             case "/postponed":
                 postponedTasksCommandHandler.handle(update);
                 break;
@@ -150,34 +146,26 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             postponedTasksCommandHandler.handleCallbackQuery(update);
         } else if ("save_task".equals(callbackData)) {
             newTaskCommandHandler.saveTaskAndNotifyUser(update.getCallbackQuery());
-        }else if (callbackData.startsWith("PREVIOUS_MONTH_") || callbackData.startsWith("NEXT_MONTH_")) {
+        } else if (callbackData.startsWith("PREVIOUS_MONTH_") || callbackData.startsWith("NEXT_MONTH_")) {
             calendarHandler.handleMonthChange(callbackData, chatId, messageId);
-        }
-
-
-
-    else if ("continue_creation".equals(callbackData)) {
+        } else if ("continue_creation".equals(callbackData)) {
             newTaskCommandHandler.promptForNotificationDate(update.getCallbackQuery());
         } else if (callbackData.startsWith("DAY")) {
             int dayOfMonth = Integer.parseInt(callbackData.substring(3));
             YearMonth selectedMonth = calendarHandler.selectedYearMonths.getOrDefault(chatId, YearMonth.now());
-            // Створюємо дату з використанням вибраного року та місяця
+
             LocalDate selectedDate = selectedMonth.atDay(dayOfMonth);
             List<Task> tasksForDay = taskService.findTasksForDay(selectedDate, chatId);
 
             if (!tasksForDay.isEmpty() || currentState == NewTaskCommandHandler.UserState.AWAITING_NOTIFICATION_DATE) {
                 if (currentState == NewTaskCommandHandler.UserState.AWAITING_NOTIFICATION_DATE) {
-                    // Користувач хоче створити нову задачу і вибрав дату
                     newTaskCommandHandler.saveTaskWithNotificationDate(update.getCallbackQuery());
                 } else {
-                    // Користувач хоче переглянути задачі за обраною датою
-             showTasksForSelectedDay(chatId, selectedDate, tasksForDay);
+                    showTasksForSelectedDay(chatId, selectedDate, tasksForDay);
                 }
             } else {
                 sendMessage(chatId, "Завдань не існує");
             }
-
-
 
 
         } else if (callbackData.startsWith("HOUR_")) {
@@ -188,13 +176,12 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             String[] parts = callbackData.split("_");
             int chosenHour = Integer.parseInt(parts[1]);
             int chosenMinute = Integer.parseInt(parts[2]);
-            // Тут ваш код для збереження задачі з вибраним часом
             newTaskCommandHandler.saveTaskWithNotificationTime(chatId, chosenHour, chosenMinute);
         }
     }
 
 
-   private void showTasksForSelectedDay(long chatId, LocalDate selectedDate, List<Task> tasksForDay) throws TelegramApiException {
+    private void showTasksForSelectedDay(long chatId, LocalDate selectedDate, List<Task> tasksForDay) throws TelegramApiException {
         if (tasksForDay.isEmpty()) {
             sendMessage(chatId, "На цей день задачі відсутні.");
         } else {
@@ -212,13 +199,13 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
                 InlineKeyboardButton doneButton = new InlineKeyboardButton();
                 doneButton.setText("Виконано");
                 doneButton.setCallbackData("DONE_TASK_" + task.getId());
-                rowInline.add(doneButton); // Додайте цю кнопку до рядка інлайн-клавіатури
+                rowInline.add(doneButton);
 
 
                 InlineKeyboardButton postponeButton = new InlineKeyboardButton();
                 postponeButton.setText("Відкласти");
                 postponeButton.setCallbackData("POSTPONE_TASK_" + task.getId());
-                rowInline.add(postponeButton); // Додайте цю кнопку до рядка інлайн-клавіатури
+                rowInline.add(postponeButton);
 
 
                 rowsInline.add(rowInline);

@@ -2,7 +2,7 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 
 import com.example.bot_diary.bot.TelegramBot;
 import com.example.bot_diary.service.TaskService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
@@ -16,14 +16,13 @@ import java.time.format.TextStyle;
 import java.util.*;
 
 @Component
+@RequiredArgsConstructor
 public class CalendarHandler {
 
-    @Autowired
-    private TaskService taskService;
+    private final TaskService taskService;
+    private final TelegramBot telegramBot;
 
-    @Autowired
-    TelegramBot telegramBot;
-
+    public final Map<Long, YearMonth> selectedYearMonths = new HashMap<>();
 
     public SendMessage generateCalendarMessage(long chatId, YearMonth currentMonth) {
         SendMessage message = new SendMessage();
@@ -44,6 +43,7 @@ public class CalendarHandler {
 
         return message;
     }
+
     private List<InlineKeyboardButton> createWeekDaysHeader() {
         String[] weekDays = {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"};
         List<InlineKeyboardButton> weekDaysRow = new ArrayList<>();
@@ -57,7 +57,6 @@ public class CalendarHandler {
     }
 
     private List<List<InlineKeyboardButton>> createDaysButtons(YearMonth currentMonth, long chatId) {
-        // Тепер chatId доступний для використання в цьому методі
         List<LocalDate> datesWithTasks = taskService.findDatesWithTasks(currentMonth, chatId);
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         LocalDate date = currentMonth.atDay(1);
@@ -79,7 +78,7 @@ public class CalendarHandler {
             InlineKeyboardButton dayButton = new InlineKeyboardButton();
             String dayButtonText = String.format("%02d", dayOfMonth);
             if (datesWithTasks.contains(date)) {
-                dayButtonText = "✓ " + dayButtonText; // Виділяємо день з задачами
+                dayButtonText = "✓ " + dayButtonText;
             }
             dayButton.setText(dayButtonText);
             dayButton.setCallbackData("DAY" + dayOfMonth);
@@ -93,10 +92,10 @@ public class CalendarHandler {
 
         return rows;
     }
+
     private List<InlineKeyboardButton> createNavigationRow(YearMonth currentMonth) {
         InlineKeyboardButton previousMonthButton = new InlineKeyboardButton();
         previousMonthButton.setText("<<<");
-        // Use the previous month for the callback data
         previousMonthButton.setCallbackData("PREVIOUS_MONTH_" + currentMonth.minusMonths(1).toString());
 
         InlineKeyboardButton currentMonthButton = new InlineKeyboardButton();
@@ -105,7 +104,6 @@ public class CalendarHandler {
 
         InlineKeyboardButton nextMonthButton = new InlineKeyboardButton();
         nextMonthButton.setText(">>>");
-        // Use the next month for the callback data
         nextMonthButton.setCallbackData("NEXT_MONTH_" + currentMonth.plusMonths(1).toString());
 
         List<InlineKeyboardButton> navigationRow = new ArrayList<>();
@@ -115,10 +113,10 @@ public class CalendarHandler {
 
         return navigationRow;
     }
-    public final Map<Long, YearMonth> selectedYearMonths = new HashMap<>();
+
     public void handleMonthChange(String callbackData, long chatId, int messageId) throws TelegramApiException {
         YearMonth selectedMonth = YearMonth.parse(callbackData.split("_")[2]);
-        selectedYearMonths.put(chatId, selectedMonth); // Зберігаємо вибраний рік і місяць
+        selectedYearMonths.put(chatId, selectedMonth);
 
         SendMessage newCalendarMessage = generateCalendarMessage(chatId, selectedMonth);
 
