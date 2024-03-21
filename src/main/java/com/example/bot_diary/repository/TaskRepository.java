@@ -32,5 +32,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("startOfDay") LocalDateTime startOfDay,
             @Param("endOfDay") LocalDateTime endOfDay,
             @Param("userId") Long userId);
+
+    @Query("SELECT t FROM Task t WHERE t.dueDate BETWEEN :startTime AND :endTime AND t.status = 'NOT_COMPLETED'")
+    List<Task> findTasksDue(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 }
 

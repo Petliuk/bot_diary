@@ -22,6 +22,11 @@ public class TaskService {
         return taskRepository.findByUserChatId(userChatId);
     }
 
+    public List<Task> findTasksDue() {
+        LocalDateTime now = LocalDateTime.now();
+        return taskRepository.findTasksDue(now.minusMinutes(1), now.plusMinutes(1));
+    }
+
     public List<LocalDate> findDatesWithTasks(YearMonth month, Long userChatId) {
         List<Task> tasks = taskRepository.findTasksInMonthForUser(month.atDay(1).atStartOfDay(), month.atEndOfMonth().atStartOfDay(), userChatId);
         return tasks.stream()
