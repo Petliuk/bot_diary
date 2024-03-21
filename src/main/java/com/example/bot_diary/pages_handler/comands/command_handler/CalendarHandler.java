@@ -1,24 +1,28 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
+import com.example.bot_diary.bot.TelegramBot;
 import com.example.bot_diary.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 @Component
 public class CalendarHandler {
 
     @Autowired
     private TaskService taskService;
+
+    @Autowired
+    TelegramBot telegramBot;
 
 
     public SendMessage generateCalendarMessage(long chatId, YearMonth currentMonth) {
@@ -110,5 +114,20 @@ public class CalendarHandler {
         navigationRow.add(nextMonthButton);
 
         return navigationRow;
+    }
+    public final Map<Long, YearMonth> selectedYearMonths = new HashMap<>();
+    public void handleMonthChange(String callbackData, long chatId, int messageId) throws TelegramApiException {
+        YearMonth selectedMonth = YearMonth.parse(callbackData.split("_")[2]);
+        selectedYearMonths.put(chatId, selectedMonth); // Зберігаємо вибраний рік і місяць
+
+        SendMessage newCalendarMessage = generateCalendarMessage(chatId, selectedMonth);
+
+        EditMessageText editMessageText = new EditMessageText();
+        editMessageText.setChatId(String.valueOf(chatId));
+        editMessageText.setMessageId(messageId);
+        editMessageText.setText(newCalendarMessage.getText());
+        editMessageText.setReplyMarkup((InlineKeyboardMarkup) newCalendarMessage.getReplyMarkup());
+
+        telegramBot.execute(editMessageText);
     }
 }

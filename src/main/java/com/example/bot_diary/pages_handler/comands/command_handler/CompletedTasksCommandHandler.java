@@ -52,15 +52,15 @@ public class CompletedTasksCommandHandler {
                 rowsInline.add(rowInline);
                 markupInline.setKeyboard(rowsInline);
 
-                StringBuilder response = new StringBuilder();
-                response.append("ID: ").append(task.getId())
-                        .append("\nОпис: ").append(task.getDescription())
-                        .append("\nСтатус: ").append(task.getStatus().getDisplayName())
-                        .append("\n");
+                String messageText = task.getDueDate() != null ?
+                        "🗓 Дата: " + task.getDueDate().toLocalDate() + "\n" +
+                                "⏰ Час: " + task.getDueDate().toLocalTime() + "\n" : "Дата і час не вказані.\n";
+                messageText += "🔖 Статус: " + task.getStatus().getDisplayName() + "\n" +
+                        "📝 Опис: " + task.getDescription() + "\n";
 
                 SendMessage message = new SendMessage();
                 message.setChatId(String.valueOf(chatId));
-                message.setText(response.toString());
+                message.setText(messageText);
                 message.setReplyMarkup(markupInline);
                 botService.sendMessage(message);
             }

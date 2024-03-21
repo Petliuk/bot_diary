@@ -22,7 +22,9 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -50,7 +52,7 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
     private AllTasksCommandHandler allTasksCommandHandler;
 
     @Autowired
-    CalendarHandler calendarHandler;
+    private CalendarHandler calendarHandler;
 
     @Autowired
     private DeleteTasksCommandHandler deleteTasksCommandHandler;
@@ -60,6 +62,8 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
 
     @Autowired
     private TaskService taskService;
+
+    private final Map<Long, YearMonth> selectedYearMonths = new HashMap<>();
 
     @Override
     public String getBotUsername() {
@@ -146,23 +150,19 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             postponedTasksCommandHandler.handleCallbackQuery(update);
         } else if ("save_task".equals(callbackData)) {
             newTaskCommandHandler.saveTaskAndNotifyUser(update.getCallbackQuery());
-        } else if (callbackData.startsWith("PREVIOUS_MONTH_") || callbackData.startsWith("NEXT_MONTH_")) {
-            YearMonth selectedMonth = YearMonth.parse(callbackData.split("_")[2]);
+        }else if (callbackData.startsWith("PREVIOUS_MONTH_") || callbackData.startsWith("NEXT_MONTH_")) {
+            calendarHandler.handleMonthChange(callbackData, chatId, messageId);
+        }
 
-            SendMessage newCalendarMessage = calendarHandler.generateCalendarMessage(chatId, selectedMonth);
 
-            EditMessageText editMessageText = new EditMessageText();
-            editMessageText.setChatId(String.valueOf(chatId));
-            editMessageText.setMessageId(messageId);
-            editMessageText.setText(newCalendarMessage.getText());
-            editMessageText.setReplyMarkup((InlineKeyboardMarkup) newCalendarMessage.getReplyMarkup());
 
-            execute(editMessageText);
-        } else if ("continue_creation".equals(callbackData)) {
+    else if ("continue_creation".equals(callbackData)) {
             newTaskCommandHandler.promptForNotificationDate(update.getCallbackQuery());
         } else if (callbackData.startsWith("DAY")) {
             int dayOfMonth = Integer.parseInt(callbackData.substring(3));
-            LocalDate selectedDate = YearMonth.now().atDay(dayOfMonth);
+            YearMonth selectedMonth = calendarHandler.selectedYearMonths.getOrDefault(chatId, YearMonth.now());
+            // Створюємо дату з використанням вибраного року та місяця
+            LocalDate selectedDate = selectedMonth.atDay(dayOfMonth);
             List<Task> tasksForDay = taskService.findTasksForDay(selectedDate, chatId);
 
             if (!tasksForDay.isEmpty() || currentState == NewTaskCommandHandler.UserState.AWAITING_NOTIFICATION_DATE) {
@@ -176,6 +176,10 @@ public class TelegramBot extends TelegramLongPollingBot implements BotService {
             } else {
                 sendMessage(chatId, "Завдань не існує");
             }
+
+
+
+
         } else if (callbackData.startsWith("HOUR_")) {
             int chosenHour = Integer.parseInt(callbackData.substring(5));
             SendMessage minutePickerMessage = timePickerHandler.createMinutePickerMessage(chatId, chosenHour);

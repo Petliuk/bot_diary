@@ -27,10 +27,8 @@ public class AllTasksCommandHandler {
 
     public void handle(Update update) throws TelegramApiException {
 
-        // Використання chatId для отримання задач конкретного користувача
         long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
-       /* List<Task> tasks = taskService.findAllTasksByUserChatId(chatId);*/
-        List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.NOT_COMPLETED,chatId);
+        List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.NOT_COMPLETED, chatId);
 
         if (tasks.isEmpty()) {
             SendMessage message = new SendMessage();
@@ -39,52 +37,41 @@ public class AllTasksCommandHandler {
             botService.sendMessage(message);
         } else {
             for (Task task : tasks) {
-
                 InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
                 List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
                 List<InlineKeyboardButton> rowInline = new ArrayList<>();
 
+                // Конфігурація кнопок
                 InlineKeyboardButton deleteButton = new InlineKeyboardButton();
                 deleteButton.setText("Видалити");
                 deleteButton.setCallbackData("DELETE_TASK_" + task.getId());
                 rowInline.add(deleteButton);
 
-
                 InlineKeyboardButton doneButton = new InlineKeyboardButton();
                 doneButton.setText("Виконано");
                 doneButton.setCallbackData("DONE_TASK_" + task.getId());
-                rowInline.add(doneButton); // Додайте цю кнопку до рядка інлайн-клавіатури
-
+                rowInline.add(doneButton);
 
                 InlineKeyboardButton postponeButton = new InlineKeyboardButton();
                 postponeButton.setText("Відкласти");
                 postponeButton.setCallbackData("POSTPONE_TASK_" + task.getId());
-                rowInline.add(postponeButton); // Додайте цю кнопку до рядка інлайн-клавіатури
-
+                rowInline.add(postponeButton);
 
                 rowsInline.add(rowInline);
                 markupInline.setKeyboard(rowsInline);
 
-             /*   response.append("ID: ").append(task.getId())
-                        .append("\nОпис: ").append(task.getDescription())
-                        .append("\nСтатус: ").append(task.getStatus().getDisplayName())
-                        .append("\n\n");*/
-
-                String messageText = "🗓 Дата: " + task.getDueDate().toLocalDate() + "\n" +
-                        "⏰ Час: " + task.getDueDate().toLocalTime() + "\n" +
-                        "🔖 Статус: " + task.getStatus().getDisplayName() + "\n" +
+                String messageText = task.getDueDate() != null ?
+                        "🗓 Дата: " + task.getDueDate().toLocalDate() + "\n" +
+                                "⏰ Час: " + task.getDueDate().toLocalTime() + "\n" : "Дата і час не вказані.\n";
+                messageText += "🔖 Статус: " + task.getStatus().getDisplayName() + "\n" +
                         "📝 Опис: " + task.getDescription() + "\n";
-
 
                 SendMessage message = new SendMessage();
                 message.setChatId(String.valueOf(chatId));
                 message.setText(messageText);
                 message.setReplyMarkup(markupInline);
                 botService.sendMessage(message);
-
             }
         }
-
     }
-
 }

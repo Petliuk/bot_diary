@@ -1,5 +1,6 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
+import com.example.bot_diary.bot.TelegramBot;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.models.User;
@@ -35,6 +36,7 @@ public class NewTaskCommandHandler {
 
     private final Map<Long, String> taskDescriptions = new HashMap<>();
     private final Map<Long, LocalDate> selectedDates = new HashMap<>();
+
     @Autowired
     private UserService userService;
 
@@ -51,7 +53,7 @@ public class NewTaskCommandHandler {
     private MessageService messageService;
 
     @Autowired
-    CalendarHandler calendarHandler;
+    private CalendarHandler calendarHandler;
 
     private final Map<Long, UserState> userStates = new HashMap<>();
 
@@ -118,6 +120,7 @@ public class NewTaskCommandHandler {
         botService.sendMessage(message);
 
     }
+
     public void saveTaskAndNotifyUser(CallbackQuery callbackQuery) throws TelegramApiException {
         Long chatId = callbackQuery.getMessage().getChatId();
 
@@ -149,8 +152,9 @@ public class NewTaskCommandHandler {
         String callbackData = callbackQuery.getData();
         int dayOfMonth = Integer.parseInt(callbackData.substring(3));
 
-        YearMonth currentMonth = YearMonth.now();
-        LocalDate notificationDate = currentMonth.atDay(dayOfMonth);
+        // Використання вибраного року та місяця замість поточного
+        YearMonth selectedMonth = calendarHandler.selectedYearMonths.getOrDefault(chatId, YearMonth.now());
+        LocalDate notificationDate = selectedMonth.atDay(dayOfMonth);
         selectedDates.put(chatId, notificationDate); // Зберігаємо обрану дату
 
         userStates.put(chatId, UserState.AWAITING_NOTIFICATION_TIME);
@@ -158,30 +162,30 @@ public class NewTaskCommandHandler {
         botService.sendMessage(timePickerMessage);
     }
 
+    public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) throws TelegramApiException {
+        LocalDate notificationDate = selectedDates.get(chatId);
+        if (notificationDate == null) {
+            botService.sendMessage(chatId, "Помилка: Дата не була вибрана.");
+            return;
+        }
 
-        public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) throws TelegramApiException {
-            LocalDate notificationDate = selectedDates.get(chatId);
-            if (notificationDate == null) {
-                botService.sendMessage(chatId, "Помилка: Дата не була вибрана.");
-                return;
-            }
+        // Створення LocalDateTime без конвертації часової зони
+        LocalDateTime dueDateTime = LocalDateTime.of(notificationDate, LocalTime.of(hour, minute));
 
-            // Створення LocalDateTime без конвертації часової зони
-            LocalDateTime dueDateTime = LocalDateTime.of(notificationDate, LocalTime.of(hour, minute));
-
-            Task task = new Task();
-            task.setDescription(taskDescriptions.get(chatId));
-            task.setUser(userService.findOrCreateUser(chatId));
-            task.setStatus(TaskStatus.NOT_COMPLETED);
-            task.setDueDate(dueDateTime); // Не конвертувати час
-            taskService.saveTask(task);
+        Task task = new Task();
+        task.setDescription(taskDescriptions.get(chatId));
+        task.setUser(userService.findOrCreateUser(chatId));
+        task.setStatus(TaskStatus.NOT_COMPLETED);
+        task.setDueDate(dueDateTime); // Не конвертувати час
+        taskService.saveTask(task);
 
 
-            // Прибирання
+        // Прибирання
         selectedDates.remove(chatId);
         taskDescriptions.remove(chatId);
         userStates.put(chatId, UserState.NONE);
 
         botService.sendMessage(chatId, "Ваша задача зі сповіщенням за часом збережена.");
+        calendarHandler.selectedYearMonths.remove(chatId);
     }
 }
