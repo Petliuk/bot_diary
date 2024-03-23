@@ -1,8 +1,7 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
-
-import com.example.bot_diary.bot.TelegramBot;
 import com.example.bot_diary.models.Task;
+import com.example.bot_diary.pages_handler.comands.MessageService;
 import com.example.bot_diary.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -20,15 +19,15 @@ public class TaskNotificationScheduler {
     private TaskService taskService;
 
     @Autowired
-    private TelegramBot telegramBot;
+    private MessageService messageService;
 
-    @Scheduled(fixedRate = 60000) // перевірка кожну хвилину
+    @Scheduled(fixedRate = 60000)
     public void sendTaskReminders() {
         List<Task> dueTasks = taskService.findTasksDue();
         for (Task task : dueTasks) {
             LocalDateTime now = LocalDateTime.now();
             if (now.isAfter(task.getDueDate().minusMinutes(1)) && now.isBefore(task.getDueDate().plusMinutes(1))) {
-                telegramBot.sendMessage(task.getUser().getChatId(), buildReminderMessage(task));
+                messageService.sendMessage(task.getUser().getChatId(), buildReminderMessage(task));
             }
         }
     }

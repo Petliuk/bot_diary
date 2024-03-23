@@ -1,11 +1,9 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
-import com.example.bot_diary.bot.TelegramBot;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.models.User;
-import com.example.bot_diary.pages_handler.comands.BotService;
-import com.example.bot_diary.service.MessageService;
+import com.example.bot_diary.pages_handler.comands.MessageService;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +28,7 @@ public class NewTaskCommandHandler {
         AWAITING_TASK_DESCRIPTION,
         TASK_CREATED,
         AWAITING_NOTIFICATION_DATE,
-        AWAITING_NOTIFICATION_TIME // Новий стан
+        AWAITING_NOTIFICATION_TIME
     }
 
 
@@ -43,14 +41,15 @@ public class NewTaskCommandHandler {
     @Autowired
     TimePickerHandler timePickerHandler;
 
+ /*   @Autowired
+    private BotService botService;*/
+
     @Autowired
-    private BotService botService;
+    private MessageService messageService;
 
     @Autowired
     private TaskService taskService;
 
-    @Autowired
-    private MessageService messageService;
 
     @Autowired
     private CalendarHandler calendarHandler;
@@ -117,7 +116,7 @@ public class NewTaskCommandHandler {
         message.setChatId(String.valueOf(chatId));
         message.setText("Бажаєте налаштувати сповіщення?");
         message.setReplyMarkup(inlineKeyboardMarkup);
-        botService.sendMessage(message);
+        messageService.sendMessage(message);
 
     }
 
@@ -136,7 +135,7 @@ public class NewTaskCommandHandler {
         userStates.put(chatId, UserState.NONE);
         taskDescriptions.remove(chatId);
 
-        botService.sendMessage(chatId, "Ваша задача збережена.");
+        messageService.sendMessage(chatId, "Ваша задача збережена.");
     }
 
     public void promptForNotificationDate(CallbackQuery callbackQuery) throws TelegramApiException {
@@ -144,7 +143,7 @@ public class NewTaskCommandHandler {
         userStates.put(chatId, UserState.AWAITING_NOTIFICATION_DATE);
 
         SendMessage calendarMessage = calendarHandler.generateCalendarMessage(chatId, YearMonth.now());
-        botService.sendMessage(calendarMessage);
+        messageService.sendMessage(calendarMessage);
     }
 
     public void saveTaskWithNotificationDate(CallbackQuery callbackQuery) throws TelegramApiException {
@@ -159,13 +158,13 @@ public class NewTaskCommandHandler {
 
         userStates.put(chatId, UserState.AWAITING_NOTIFICATION_TIME);
         SendMessage timePickerMessage = timePickerHandler.createHourPickerMessage(chatId);
-        botService.sendMessage(timePickerMessage);
+        messageService.sendMessage(timePickerMessage);
     }
 
     public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) throws TelegramApiException {
         LocalDate notificationDate = selectedDates.get(chatId);
         if (notificationDate == null) {
-            botService.sendMessage(chatId, "Помилка: Дата не була вибрана.");
+            messageService.sendMessage(chatId, "Помилка: Дата не була вибрана.");
             return;
         }
 
@@ -185,7 +184,7 @@ public class NewTaskCommandHandler {
         taskDescriptions.remove(chatId);
         userStates.put(chatId, UserState.NONE);
 
-        botService.sendMessage(chatId, "Ваша задача зі сповіщенням за часом збережена.");
+        messageService.sendMessage(chatId, "Ваша задача зі сповіщенням за часом збережена.");
         calendarHandler.selectedYearMonths.remove(chatId);
     }
 }

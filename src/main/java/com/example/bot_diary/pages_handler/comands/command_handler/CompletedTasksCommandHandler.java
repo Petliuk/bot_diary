@@ -2,7 +2,7 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
-import com.example.bot_diary.pages_handler.comands.BotService;
+import com.example.bot_diary.pages_handler.comands.MessageService;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.utilities.MessageUtils;
 import lombok.RequiredArgsConstructor;
@@ -17,29 +17,30 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CompletedTasksCommandHandler {
 
-    private final BotService botService;
+    private final MessageService messageService;
     private final TaskService taskService;
 
     public void handle(Update update) throws TelegramApiException {
         long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
-        List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.COMPLETED,chatId);
+        List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.COMPLETED, chatId);
 
-            if (!tasks.isEmpty()) {
-                MessageUtils.sendTasksWithCustomButtons(tasks, chatId, botService, task -> List.of(
-                        MessageUtils.createButton("Повернути", "REVERT_TASK_" + task.getId()),
-                        MessageUtils.createButton("Видалити", "DELETE_TASK_" + task.getId())
-                ));
-            } else {
-                SendMessage message = new SendMessage();
-                message.setChatId(String.valueOf(chatId));
-                message.setText("Виконаних задач немає.");
-                botService.sendMessage(message);
-            }
+        if (!tasks.isEmpty()) {
+            MessageUtils.sendTasksWithCustomButtons(tasks, chatId, messageService, task -> List.of(
+                    MessageUtils.createButton("Повернути", "REVERT_TASK_" + task.getId()),
+                    MessageUtils.createButton("Видалити", "DELETE_TASK_" + task.getId())
+            ));
+        } else {
+            SendMessage message = new SendMessage();
+            message.setChatId(String.valueOf(chatId));
+            message.setText("Виконаних задач немає.");
+            messageService.sendMessage(message);
         }
+    }
 
 
     public void handleCallbackQuery(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();
+
         if (callbackData.startsWith("REVERT_TASK_")) {
             Long taskId = Long.parseLong(callbackData.split("_")[2]);
             taskService.revertTask(taskId);
@@ -47,7 +48,8 @@ public class CompletedTasksCommandHandler {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(update.getCallbackQuery().getMessage().getChatId()));
             message.setText(response);
-            botService.sendMessage(message);
+            messageService.sendMessage(message);
+            
         } else if (callbackData.startsWith("DONE_TASK_")) {
             Long taskId = Long.parseLong(callbackData.split("_")[2]);
             markTaskAsCompleted(taskId);
@@ -55,7 +57,7 @@ public class CompletedTasksCommandHandler {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(update.getCallbackQuery().getMessage().getChatId()));
             message.setText(response);
-            botService.sendMessage(message);
+            messageService.sendMessage(message);
         }
     }
 
