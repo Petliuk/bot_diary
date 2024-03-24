@@ -2,7 +2,6 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
-import com.example.bot_diary.pages_handler.comands.BotService;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.utilities.MessageUtils;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AllTasksCommandHandler {
 
-    private final BotService botService;
+    private final MessageService messageService;
     private final TaskService taskService;
 
     public void handle(Update update) throws TelegramApiException {
@@ -30,9 +29,9 @@ public class AllTasksCommandHandler {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
             message.setText("Задач немає.");
-            botService.sendMessage(message);
+            messageService.sendMessage(message);
         } else {
-            MessageUtils.sendTaskMessages(tasks, chatId, botService);
+            MessageUtils.sendTaskMessages(tasks, chatId, messageService);
         }
     }
 

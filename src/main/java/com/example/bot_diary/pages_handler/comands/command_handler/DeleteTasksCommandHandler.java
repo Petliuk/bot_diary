@@ -1,6 +1,5 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
-import com.example.bot_diary.pages_handler.comands.BotService;
 import com.example.bot_diary.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -13,7 +12,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 public class DeleteTasksCommandHandler {
 
     private final TaskService taskService;
-    private final BotService botService;
+    private final MessageService messageService;
 
     public void handle(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();
@@ -26,6 +25,6 @@ public class DeleteTasksCommandHandler {
         message.setChatId(String.valueOf(chatId));
         message.setText("Завдання з ID " + taskId + " успішно видалено.");
 
-        botService.sendMessage(message);
+        messageService.sendMessage(message);
     }
 }

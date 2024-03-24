@@ -1,11 +1,11 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
-import com.example.bot_diary.bot.TelegramBot;
 import com.example.bot_diary.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -20,9 +20,17 @@ import java.util.*;
 public class CalendarHandler {
 
     private final TaskService taskService;
-    private final TelegramBot telegramBot;
+    private final MessageService messageService;
 
     public final Map<Long, YearMonth> selectedYearMonths = new HashMap<>();
+
+
+    public void handleCalendarCommand(Update update) throws TelegramApiException {
+        long chatId = update.getMessage().getChatId();
+        YearMonth currentMonth = YearMonth.now();
+        SendMessage calendarMessage = generateCalendarMessage(chatId, currentMonth);
+        messageService.sendMessage(calendarMessage);
+    }
 
     public SendMessage generateCalendarMessage(long chatId, YearMonth currentMonth) {
         SendMessage message = new SendMessage();
@@ -126,6 +134,6 @@ public class CalendarHandler {
         editMessageText.setText(newCalendarMessage.getText());
         editMessageText.setReplyMarkup((InlineKeyboardMarkup) newCalendarMessage.getReplyMarkup());
 
-        telegramBot.execute(editMessageText);
+        messageService.editMessage(editMessageText);
     }
 }
