@@ -3,7 +3,6 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.models.User;
-import com.example.bot_diary.pages_handler.comands.MessageService;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;

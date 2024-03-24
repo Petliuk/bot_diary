@@ -2,7 +2,6 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
-import com.example.bot_diary.pages_handler.comands.BotService;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.utilities.MessageUtils;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +17,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostponedTasksCommandHandler {
 
-    private final BotService botService;
+
+    private final MessageService messageService;
+
     private final TaskService taskService;
 
     public void handle(Update update) throws TelegramApiException {
@@ -26,7 +27,7 @@ public class PostponedTasksCommandHandler {
 
         List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.POSTPONED, chatId);
         if (!tasks.isEmpty()) {
-            MessageUtils.sendTasksWithCustomButtons(tasks, chatId, botService, task -> List.of(
+            MessageUtils.sendTasksWithCustomButtons(tasks, chatId, messageService, task -> List.of(
                     MessageUtils.createButton("Повернути", "REVERT_TASK_" + task.getId()),
                     MessageUtils.createButton("Видалити", "DELETE_TASK_" + task.getId())
             ));
@@ -34,7 +35,7 @@ public class PostponedTasksCommandHandler {
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
             message.setText("Відкладених задач немає.");
-            botService.sendMessage(message);
+            messageService.sendMessage(message);
         }
     }
 
@@ -47,7 +48,7 @@ public class PostponedTasksCommandHandler {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(update.getCallbackQuery().getMessage().getChatId()));
         message.setText("Задача з ID " + taskId + " була відкладена.");
-        botService.sendMessage(message);
+        messageService.sendMessage(message);
 
     }
 }

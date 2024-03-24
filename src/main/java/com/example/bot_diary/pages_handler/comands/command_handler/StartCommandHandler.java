@@ -1,6 +1,5 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
-import com.example.bot_diary.pages_handler.comands.MessageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
