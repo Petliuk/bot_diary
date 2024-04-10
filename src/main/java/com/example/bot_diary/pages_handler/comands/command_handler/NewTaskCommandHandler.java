@@ -1,10 +1,13 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
+import com.example.bot_diary.job.NotificationScheduler;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.models.User;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.service.UserService;
+import com.example.bot_diary.utilities.MessageUtils;
+import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -15,10 +18,10 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.time.*;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 public class NewTaskCommandHandler {
@@ -30,7 +33,6 @@ public class NewTaskCommandHandler {
         AWAITING_NOTIFICATION_TIME
     }
 
-
     private final Map<Long, String> taskDescriptions = new HashMap<>();
     private final Map<Long, LocalDate> selectedDates = new HashMap<>();
 
@@ -38,10 +40,7 @@ public class NewTaskCommandHandler {
     private UserService userService;
 
     @Autowired
-    TimePickerHandler timePickerHandler;
-
- /*   @Autowired
-    private BotService botService;*/
+    private TimePickerHandler timePickerHandler;
 
     @Autowired
     private MessageService messageService;
@@ -49,14 +48,19 @@ public class NewTaskCommandHandler {
     @Autowired
     private TaskService taskService;
 
-
     @Autowired
     private CalendarHandler calendarHandler;
 
-    private final Map<Long, UserState> userStates = new HashMap<>();
+    @Autowired
+    private NotificationScheduler notificationScheduler;
 
+    private final Map<Long, UserState> userStates = new HashMap<>();
     public Map<Long, UserState> getUserStates() {
         return userStates;
+    }
+
+    public Map<Long, LocalDate> getSelectedDates() {
+        return selectedDates;
     }
 
     public void initiateNewTaskCreation(long chatId) {
@@ -80,51 +84,43 @@ public class NewTaskCommandHandler {
         String taskDescription = update.getMessage().getText();
         taskDescriptions.put(chatId, taskDescription);
 
-        User user = userService.findOrCreateUser(chatId);
+        String firstName = update.getMessage().getFrom().getFirstName(); // Ім'я завжди присутнє
+        String lastName = update.getMessage().getFrom().getLastName(); // Прізвище може бути null
+        String userName = update.getMessage().getFrom().getUserName(); // Юзернейм може бути null
+
+        Optional<User> userOptional = userService.findUserByChatId(chatId);
+        User user = userOptional.orElseGet(() -> userService.createUser(chatId, firstName, lastName, userName));
+
         Task task = new Task();
-        task.setDescription(update.getMessage().getText());
+        task.setDescription(taskDescription);
         task.setUser(user);
         task.setStatus(TaskStatus.NOT_COMPLETED);
+        taskService.saveTask(task);
+
         userStates.put(chatId, UserState.TASK_CREATED);
         sendOptionsAfterTaskCreation(chatId);
     }
 
     private void sendOptionsAfterTaskCreation(long chatId) throws TelegramApiException {
+        List<List<InlineKeyboardButton>> buttons = MessageUtils.createConfirmationButtons("Так", "continue_creation", "Ні", "save_task");
+
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-
-        InlineKeyboardButton buttonContinue = new InlineKeyboardButton();
-        buttonContinue.setText("Так");
-        buttonContinue.setCallbackData("continue_creation");
-
-        InlineKeyboardButton buttonSetNotification = new InlineKeyboardButton();
-        buttonSetNotification.setText("Ні");
-        buttonSetNotification.setCallbackData("save_task");
-
-        List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
-        keyboardButtonsRow1.add(buttonContinue);
-        keyboardButtonsRow1.add(buttonSetNotification);
-
-        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
-        rowList.add(keyboardButtonsRow1);
-
-        inlineKeyboardMarkup.setKeyboard(rowList);
-
+        inlineKeyboardMarkup.setKeyboard(buttons);
 
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Бажаєте налаштувати сповіщення?");
+        message.setText("Бажаєте обрати час?");
         message.setReplyMarkup(inlineKeyboardMarkup);
         messageService.sendMessage(message);
-
     }
 
     public void saveTaskAndNotifyUser(CallbackQuery callbackQuery) throws TelegramApiException {
         Long chatId = callbackQuery.getMessage().getChatId();
-
         String taskDescription = taskDescriptions.getOrDefault(chatId, "Опис не знайдено");
 
-        User user = userService.findOrCreateUser(chatId);
+        Optional<User> userOptional = userService.findUserByChatId(chatId);
+        User user = userOptional.orElseGet(() -> userService.createUser(chatId, null, null, null)); // Використання null для імені, прізвища та юзернейма, оскільки ми не маємо цих даних
+
         Task task = new Task();
         task.setDescription(taskDescription);
         task.setUser(user);
@@ -150,10 +146,9 @@ public class NewTaskCommandHandler {
         String callbackData = callbackQuery.getData();
         int dayOfMonth = Integer.parseInt(callbackData.substring(3));
 
-        // Використання вибраного року та місяця замість поточного
         YearMonth selectedMonth = calendarHandler.selectedYearMonths.getOrDefault(chatId, YearMonth.now());
         LocalDate notificationDate = selectedMonth.atDay(dayOfMonth);
-        selectedDates.put(chatId, notificationDate); // Зберігаємо обрану дату
+        selectedDates.put(chatId, notificationDate);
 
         userStates.put(chatId, UserState.AWAITING_NOTIFICATION_TIME);
         SendMessage timePickerMessage = timePickerHandler.createHourPickerMessage(chatId);
@@ -163,27 +158,32 @@ public class NewTaskCommandHandler {
     public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) throws TelegramApiException {
         LocalDate notificationDate = selectedDates.get(chatId);
         if (notificationDate == null) {
-            messageService.sendMessage(chatId, "Помилка: Дата не була вибрана.");
+            messageService.sendMessage(chatId, "Не вдалося налаштувати сповіщення: дата не визначена.");
             return;
         }
 
-        // Створення LocalDateTime без конвертації часової зони
-        LocalDateTime dueDateTime = LocalDateTime.of(notificationDate, LocalTime.of(hour, minute));
+        LocalDateTime notificationDateTime = LocalDateTime.of(notificationDate, LocalTime.of(hour, minute));
+        String taskDescription = taskDescriptions.get(chatId);
+
+        Optional<User> userOptional = userService.findUserByChatId(chatId);
+        User user = userOptional.orElseGet(() -> userService.createUser(chatId, null, null, null)); // Використання null для імені, прізвища та юзернейма, оскільки ми не маємо цих даних
 
         Task task = new Task();
-        task.setDescription(taskDescriptions.get(chatId));
-        task.setUser(userService.findOrCreateUser(chatId));
+        task.setDescription(taskDescription);
+        task.setUser(user);
         task.setStatus(TaskStatus.NOT_COMPLETED);
-        task.setDueDate(dueDateTime); // Не конвертувати час
+        task.setDueDate(notificationDateTime);
         taskService.saveTask(task);
 
+        try {
+            notificationScheduler.scheduleNotification(chatId, notificationDateTime, Duration.ofMinutes(10));
+        } catch (SchedulerException e) {
+            e.printStackTrace();
+        }
 
-        // Прибирання
         selectedDates.remove(chatId);
         taskDescriptions.remove(chatId);
         userStates.put(chatId, UserState.NONE);
-
-        messageService.sendMessage(chatId, "Ваша задача зі сповіщенням за часом збережена.");
-        calendarHandler.selectedYearMonths.remove(chatId);
+        messageService.sendMessage(chatId, "Ваша задача збережена і ви отримаєте сповіщення за 10 хвилин до початку.");
     }
 }

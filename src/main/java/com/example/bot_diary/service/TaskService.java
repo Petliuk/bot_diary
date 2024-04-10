@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,10 +16,6 @@ public class TaskService {
 
     @Autowired
     private TaskRepository taskRepository;
-
-    public List<Task> findAllTasksByUserChatId(Long userChatId) {
-        return taskRepository.findByUserChatId(userChatId);
-    }
 
     public List<Task> findTasksDue() {
         LocalDateTime now = LocalDateTime.now();
@@ -49,21 +44,12 @@ public class TaskService {
         taskRepository.save(task);
     }
 
-    public List<Task> findAllTasks() {
-        return taskRepository.findByStatusNotIn(Arrays.asList(TaskStatus.COMPLETED, TaskStatus.POSTPONED));
-    }
-
     public void deleteTask(Long taskId) {
         taskRepository.deleteById(taskId);
     }
 
     public Task findTaskById(Long taskId) {
         return taskRepository.findById(taskId).orElse(null);
-    }
-
-
-    public List<Task> findAllTasksByStatus(TaskStatus status) {
-        return taskRepository.findByStatus(status);
     }
 
     public void revertTask(Long taskId) {

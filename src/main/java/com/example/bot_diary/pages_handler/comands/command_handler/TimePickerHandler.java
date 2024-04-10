@@ -8,6 +8,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +24,12 @@ public class TimePickerHandler {
     private NewTaskCommandHandler newTaskCommandHandler;
 
     public SendMessage createHourPickerMessage(long chatId) {
+        LocalTime now = LocalTime.now();
+        LocalDate today = LocalDate.now();
+
+        // Припустимо, selectedDates - це карта, де зберігаються обрані дати
+        LocalDate selectedDate = newTaskCommandHandler.getSelectedDates().get(chatId);
+
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText("Виберіть годину:");
@@ -30,9 +38,18 @@ public class TimePickerHandler {
         List<List<InlineKeyboardButton>> keyboardRows = new ArrayList<>();
 
         for (int hour = 0; hour < 24; hour++) {
+            String hourText = String.format("%02d", hour);
             InlineKeyboardButton hourButton = new InlineKeyboardButton();
-            hourButton.setText(String.format("%02d", hour) + " год");
-            hourButton.setCallbackData("HOUR_" + hour);
+
+            // Перевіряємо, чи вибрана дата є сьогоднішнім днем і чи година вже минула
+            if (selectedDate != null && selectedDate.equals(today) && now.getHour() > hour) {
+                hourText = "✘ " + hourText;
+                hourButton.setCallbackData("PAST_HOUR");
+            } else {
+                hourButton.setCallbackData("HOUR_" + hour);
+            }
+
+            hourButton.setText(hourText + " год");
             if (hour % 6 == 0) {
                 keyboardRows.add(new ArrayList<>());
             }
@@ -44,8 +61,11 @@ public class TimePickerHandler {
 
         return message;
     }
-
     public SendMessage createMinutePickerMessage(long chatId, int chosenHour) {
+        LocalTime now = LocalTime.now();
+        LocalDate today = LocalDate.now();
+        LocalDate selectedDate = newTaskCommandHandler.getSelectedDates().get(chatId); // Отримання обраної дати
+
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(String.format("Вибрано %02d год. Виберіть хвилини:", chosenHour));
@@ -54,9 +74,18 @@ public class TimePickerHandler {
         List<List<InlineKeyboardButton>> keyboardRows = new ArrayList<>();
 
         for (int minute = 0; minute < 60; minute += 5) {
+            String minuteText = String.format("%02d", minute);
             InlineKeyboardButton minuteButton = new InlineKeyboardButton();
-            minuteButton.setText(String.format("%02d", minute) + " хв");
-            minuteButton.setCallbackData("MINUTE_" + chosenHour + "_" + minute);
+
+            // Додаткова перевірка для вибору хвилин
+            if (selectedDate != null && !selectedDate.isAfter(today) &&
+                    (chosenHour < now.getHour() || (chosenHour == now.getHour() && minute <= now.getMinute()))) {
+                minuteText = "✘ " + minuteText; // Минулі хвилини позначаються знаком "✘"
+                minuteButton.setCallbackData("PAST_MINUTE"); // Користувач не може вибрати минулі хвилини
+            } else {
+                minuteButton.setCallbackData("MINUTE_" + chosenHour + "_" + minute); // Майбутні хвилини можна вибрати
+            }
+            minuteButton.setText(minuteText + " хв");
             if (minute % 30 == 0) {
                 keyboardRows.add(new ArrayList<>());
             }
@@ -68,7 +97,6 @@ public class TimePickerHandler {
 
         return message;
     }
-
     public void handleHourSelection(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();
         int chosenHour = Integer.parseInt(callbackData.substring(5));

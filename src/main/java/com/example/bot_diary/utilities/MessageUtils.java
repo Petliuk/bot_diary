@@ -63,4 +63,18 @@ public class MessageUtils {
             botService.sendMessage(message);
         }
     }
+
+    public static List<List<InlineKeyboardButton>> createConfirmationButtons(String yesText, String yesCallbackData, String noText, String noCallbackData) {
+        InlineKeyboardButton yesButton = createButton(yesText, yesCallbackData);
+        InlineKeyboardButton noButton = createButton(noText, noCallbackData);
+
+        List<InlineKeyboardButton> buttonsRow = new ArrayList<>();
+        buttonsRow.add(yesButton);
+        buttonsRow.add(noButton);
+
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        buttons.add(buttonsRow);
+
+        return buttons;
+    }
 }
