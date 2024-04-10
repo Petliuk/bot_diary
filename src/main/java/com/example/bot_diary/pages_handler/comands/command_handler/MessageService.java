@@ -11,7 +11,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Slf4j
 @Service
-
 public class MessageService implements BotService {
 
     private final AbsSender absSender;

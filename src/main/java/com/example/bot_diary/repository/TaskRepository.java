@@ -13,11 +13,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByUserChatIdAndStatus(Long userChatId, TaskStatus status);
 
-    List<Task> findByUserChatId(Long userChatId);
-
-    List<Task> findByStatus(TaskStatus status);
-
-    List<Task> findByStatusNotIn(List<TaskStatus> statuses);
 
     @Query("SELECT t FROM Task t WHERE t.user.chatId = :userId AND t.dueDate BETWEEN :startDateTime AND :endDateTime")
     List<Task> findTasksInMonthForUser(

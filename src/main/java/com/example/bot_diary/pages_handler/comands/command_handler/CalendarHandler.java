@@ -24,7 +24,6 @@ public class CalendarHandler {
 
     public final Map<Long, YearMonth> selectedYearMonths = new HashMap<>();
 
-
     public void handleCalendarCommand(Update update) throws TelegramApiException {
         long chatId = update.getMessage().getChatId();
         YearMonth currentMonth = YearMonth.now();
@@ -65,6 +64,7 @@ public class CalendarHandler {
     }
 
     private List<List<InlineKeyboardButton>> createDaysButtons(YearMonth currentMonth, long chatId) {
+        LocalDate today = LocalDate.now();
         List<LocalDate> datesWithTasks = taskService.findDatesWithTasks(currentMonth, chatId);
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         LocalDate date = currentMonth.atDay(1);
@@ -72,26 +72,37 @@ public class CalendarHandler {
         int dayOfWeek = date.getDayOfWeek().getValue();
 
         List<InlineKeyboardButton> weekRow = new ArrayList<>();
+        // Start with empty buttons if the month does not start on Monday
         for (int i = 1; i < dayOfWeek; i++) {
-            InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText(" ");
-            button.setCallbackData("empty");
-            weekRow.add(button);
+            weekRow.add(createButton(" ", "empty"));
         }
 
         for (int dayOfMonth = 1; dayOfMonth <= lengthOfMonth; dayOfMonth++) {
             date = currentMonth.atDay(dayOfMonth);
             dayOfWeek = date.getDayOfWeek().getValue();
+            boolean taskOnDate = datesWithTasks.contains(date);
+            String callbackData;
 
-            InlineKeyboardButton dayButton = new InlineKeyboardButton();
+            // Button text is different depending on whether it's a past, current, or future date
             String dayButtonText = String.format("%02d", dayOfMonth);
-            if (datesWithTasks.contains(date)) {
+            if (date.isBefore(today)) {
+                dayButtonText = "✘" + dayButtonText;
+                callbackData = "PAST" + dayOfMonth; // Callback indicates this is a past day
+            } else if (date.equals(today)) {
+                dayButtonText = "⬤ " + dayButtonText; // Current day marked with a circle
+                callbackData = "DAY" + dayOfMonth; // Callback indicates this is the current day
+            } else {
+                callbackData = "DAY" + dayOfMonth; // Future dates
+            }
+
+            // If the day has tasks, add a checkmark regardless of past, current, or future
+            if (taskOnDate) {
                 dayButtonText = "✓ " + dayButtonText;
             }
-            dayButton.setText(dayButtonText);
-            dayButton.setCallbackData("DAY" + dayOfMonth);
-            weekRow.add(dayButton);
 
+            weekRow.add(createButton(dayButtonText, callbackData));
+
+            // At the end of the week or month, start a new row
             if (dayOfWeek == 7 || dayOfMonth == lengthOfMonth) {
                 rows.add(weekRow);
                 weekRow = new ArrayList<>();
@@ -100,6 +111,14 @@ public class CalendarHandler {
 
         return rows;
     }
+
+    private InlineKeyboardButton createButton(String text, String callbackData) {
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText(text);
+        button.setCallbackData(callbackData);
+        return button;
+    }
+
 
     private List<InlineKeyboardButton> createNavigationRow(YearMonth currentMonth) {
         InlineKeyboardButton previousMonthButton = new InlineKeyboardButton();

@@ -1,6 +1,6 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
-import com.example.bot_diary.models.Task;
+/*import com.example.bot_diary.models.Task;
 import com.example.bot_diary.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -11,10 +11,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
-@EnableScheduling
+@EnableScheduling*/
 public class TaskNotificationScheduler {
 
-    @Autowired
+/*    @Autowired
     private TaskService taskService;
 
     @Autowired
@@ -33,5 +33,5 @@ public class TaskNotificationScheduler {
 
     private String buildReminderMessage(Task task) {
         return "Нагадування: Вам потрібно виконати задачу \"" + task.getDescription() + "\" до " + task.getDueDate();
-    }
+    }*/
 }
