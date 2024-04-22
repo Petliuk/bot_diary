@@ -8,10 +8,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
+
 @Component
 public class NotificationScheduler {
 
-    public void scheduleNotification(Long chatId, LocalDateTime dueDateTime, Duration reminderBeforeDue) throws SchedulerException {
+    public void scheduleNotification(Long chatId, LocalDateTime dueDateTime, Duration reminderBeforeDue, String taskDescription) throws SchedulerException {
         Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
 
         LocalDateTime notificationDateTime = dueDateTime.minus(reminderBeforeDue);
@@ -20,7 +21,7 @@ public class NotificationScheduler {
         JobDetail jobDetail = JobBuilder.newJob(NotificationJob.class)
                 .withIdentity(uniqueIdentifier, "notifications")
                 .usingJobData("chatId", chatId)
-                .usingJobData("taskDescription", "Нагадування про вашу задачу")
+                .usingJobData("taskDescription", taskDescription)
                 .build();
 
         Trigger trigger = TriggerBuilder.newTrigger()

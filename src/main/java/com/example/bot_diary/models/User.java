@@ -1,6 +1,5 @@
 package com.example.bot_diary.models;
 
-import com.example.bot_diary.pages_handler.comands.AdminHandler;
 import lombok.*;
 
 import javax.persistence.*;
@@ -14,7 +13,7 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder  // Анотація тут
+@Builder
 public class User {
 
     @Id
@@ -38,12 +37,10 @@ public class User {
 
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
-    private AdminHandler.UserStatus status; // Значення за замовчуванням
+    private UserStatus status;
 
-    public void setStatus(AdminHandler.UserStatus status) {
+    public void setStatus(UserStatus status) {
         this.status = status;
     }
+
 }
-
-
-

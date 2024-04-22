@@ -7,7 +7,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
-@EnableScheduling  // Анотацыя горорить про те що десь є методі які потрібно автоматично запустити.
+@EnableScheduling
 @Data
 @PropertySource("classpath:application.properties")
 public class BotConfig {

@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-public class MessageUtils {
+public class UserButtons {
 
     public static SendMessage createTaskMessage(Task task, long chatId, List<InlineKeyboardButton> buttons) {
         InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
@@ -46,6 +46,21 @@ public class MessageUtils {
             SendMessage message = createTaskMessage(task, chatId, buttons);
             botService.sendMessage(message);
         }
+    }
+
+    public static InlineKeyboardMarkup createTaskButtons(Long taskId) {
+        List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+        List<InlineKeyboardButton> rowInline = new ArrayList<>();
+
+        rowInline.add(createButton("Видалити", "DELETE_TASK_" + taskId));
+        rowInline.add(createButton("Виконано", "DONE_TASK_" + taskId));
+        rowInline.add(createButton("Відкласти", "POSTPONE_TASK_" + taskId));
+
+        rowsInline.add(rowInline);
+        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        markupInline.setKeyboard(rowsInline);
+
+        return markupInline;
     }
 
     private static String formatTaskText(Task task) {

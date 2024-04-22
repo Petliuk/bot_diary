@@ -1,6 +1,7 @@
 package com.example.bot_diary.pages_handler.comands;
 
 import com.example.bot_diary.models.User;
+import com.example.bot_diary.models.UserStatus;
 import com.example.bot_diary.pages_handler.comands.command_handler.MessageService;
 import com.example.bot_diary.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +43,7 @@ public class UserRegistrationHandler {
         } else {
             User newUser = User.builder()
                     .chatId(chatId)
-                    .status(AdminHandler.UserStatus.UNCONFIRMED) // Явне встановлення статусу
+                    .status(UserStatus.UNCONFIRMED)
                     .registerAt(LocalDateTime.now())
                     .userName(userName)
                     .lastName(lastName)
@@ -82,7 +83,6 @@ public class UserRegistrationHandler {
         messageService.sendMessage(message);
     }
 
-
     private void sendMainMenu(Long chatId) throws TelegramApiException {
         InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
@@ -112,4 +112,5 @@ public class UserRegistrationHandler {
 
         messageService.sendMessage(message);
     }
+
 }

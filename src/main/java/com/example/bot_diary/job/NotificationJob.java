@@ -21,15 +21,14 @@ public class NotificationJob implements Job {
     }
 
     public void execute(JobExecutionContext context) throws JobExecutionException {
-        autowireDependencies(); // Автоматичне ін'єктування залежностей
+        autowireDependencies();
 
-        String taskDescription = context.getJobDetail().getJobDataMap().getString("taskDescription");
         Long chatId = context.getJobDetail().getJobDataMap().getLong("chatId");
+        String taskDescription = context.getJobDetail().getJobDataMap().getString("taskDescription");
 
-        messageService.sendMessage(chatId, "Час виконати вашу задачу: " + taskDescription);
+        messageService.sendMessage(chatId, "Нагадування: " + taskDescription + ". Час виконати вашу задачу.");
     }
 
-    // Сеттер для messageService (необхідний для ін'єкції залежності)
     public void setMessageService(MessageService messageService) {
         this.messageService = messageService;
     }
