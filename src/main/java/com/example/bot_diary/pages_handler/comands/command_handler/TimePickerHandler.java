@@ -27,7 +27,6 @@ public class TimePickerHandler {
         LocalTime now = LocalTime.now();
         LocalDate today = LocalDate.now();
 
-        // Припустимо, selectedDates - це карта, де зберігаються обрані дати
         LocalDate selectedDate = newTaskCommandHandler.getSelectedDates().get(chatId);
 
         SendMessage message = new SendMessage();
@@ -41,7 +40,6 @@ public class TimePickerHandler {
             String hourText = String.format("%02d", hour);
             InlineKeyboardButton hourButton = new InlineKeyboardButton();
 
-            // Перевіряємо, чи вибрана дата є сьогоднішнім днем і чи година вже минула
             if (selectedDate != null && selectedDate.equals(today) && now.getHour() > hour) {
                 hourText = "✘ " + hourText;
                 hourButton.setCallbackData("PAST_HOUR");
@@ -64,7 +62,7 @@ public class TimePickerHandler {
     public SendMessage createMinutePickerMessage(long chatId, int chosenHour) {
         LocalTime now = LocalTime.now();
         LocalDate today = LocalDate.now();
-        LocalDate selectedDate = newTaskCommandHandler.getSelectedDates().get(chatId); // Отримання обраної дати
+        LocalDate selectedDate = newTaskCommandHandler.getSelectedDates().get(chatId);
 
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
@@ -77,13 +75,12 @@ public class TimePickerHandler {
             String minuteText = String.format("%02d", minute);
             InlineKeyboardButton minuteButton = new InlineKeyboardButton();
 
-            // Додаткова перевірка для вибору хвилин
             if (selectedDate != null && !selectedDate.isAfter(today) &&
                     (chosenHour < now.getHour() || (chosenHour == now.getHour() && minute <= now.getMinute()))) {
-                minuteText = "✘ " + minuteText; // Минулі хвилини позначаються знаком "✘"
-                minuteButton.setCallbackData("PAST_MINUTE"); // Користувач не може вибрати минулі хвилини
+                minuteText = "✘ " + minuteText;
+                minuteButton.setCallbackData("PAST_MINUTE");
             } else {
-                minuteButton.setCallbackData("MINUTE_" + chosenHour + "_" + minute); // Майбутні хвилини можна вибрати
+                minuteButton.setCallbackData("MINUTE_" + chosenHour + "_" + minute);
             }
             minuteButton.setText(minuteText + " хв");
             if (minute % 30 == 0) {
@@ -104,10 +101,10 @@ public class TimePickerHandler {
 
         SendMessage minutePickerMessage = createMinutePickerMessage(chatId, chosenHour);
 
-        messageService.sendMessage(minutePickerMessage);    // Можу бути помилка
+        messageService.sendMessage(minutePickerMessage);
     }
 
-    public void handleMinuteSelection(Update update) throws TelegramApiException {
+    public void handleMinuteSelection(Update update) {
         String callbackData = update.getCallbackQuery().getData();
         String[] parts = callbackData.split("_");
         int chosenHour = Integer.parseInt(parts[1]);
@@ -118,5 +115,3 @@ public class TimePickerHandler {
     }
 
 }
-
-

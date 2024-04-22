@@ -2,8 +2,10 @@ package com.example.bot_diary.pages_handler.comands;
 
 import com.example.bot_diary.models.RegistrationRequest;
 import com.example.bot_diary.models.User;
+import com.example.bot_diary.models.UserStatus;
 import com.example.bot_diary.pages_handler.comands.command_handler.MessageService;
 import com.example.bot_diary.service.UserService;
+import com.example.bot_diary.utilities.AdminButtons;
 import lombok.Builder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -21,29 +23,22 @@ import java.util.Optional;
 @Builder
 public class AdminHandler {
 
-    public enum UserStatus {
-        UNCONFIRMED, // Заявка не підтверджена
-        CONFIRMED,// Заявка підтверджена
-        BLOCKED // Користувач заблокований
-    }
-
-
     @Autowired
     private UserService userService;
     @Autowired
     private MessageService messageService;
-
     @Autowired
     private UserService userRepository;
 
-    private List<RegistrationRequest> pendingRequests = new ArrayList<>();
+    private List<RegistrationRequest> pendingRequests;
 
     public void handleAdminCommands(Update update) throws TelegramApiException {
         if ("/b".equals(update.getMessage().getText()) && isAdmin(update.getMessage().getChatId())) {
             showUnconfirmedUsers(update.getMessage().getChatId());
         }
     }
-
+   /* @Value("${admin.chat.id}")
+    private Long adminChatId;*/
     private boolean isAdmin(Long chatId) {
         return chatId.equals(712909082L);
     }
@@ -59,39 +54,28 @@ public class AdminHandler {
             return;
         }
 
-
         for (User user : unconfirmedUsers) {
-            InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
-            List<InlineKeyboardButton> rowInline = new ArrayList<>();
-
-            InlineKeyboardButton confirmButton = new InlineKeyboardButton();
-            confirmButton.setText("Підтвердити");
-            confirmButton.setCallbackData("CONFIRM_" + user.getChatId());
-
-            rowInline.add(confirmButton);
-            rowsInline.add(rowInline);
-            markupInline.setKeyboard(rowsInline);
-
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(adminChatId));
             message.setText("Користувач: " + user.getFirstName() + " " + user.getLastName());
-            message.setReplyMarkup(markupInline);
-
+            message.setReplyMarkup(AdminButtons.getConfirmUserMarkup(user.getChatId()));
             messageService.sendMessage(message);
         }
     }
 
-
     void confirmUser(Long userId, Long adminChatId) {
         Optional<User> userOptional = userService.findUserByChatId(userId);
         userOptional.ifPresent(user -> {
-            user.setStatus(AdminHandler.UserStatus.CONFIRMED);  // Оновлення статусу користувача
-            userService.saveUser(user);  // Збереження оновленого користувача
+            user.setStatus(UserStatus.CONFIRMED);
+            userService.saveUser(user);
 
-            // Надсилання повідомлень про підтвердження
             messageService.sendMessage(adminChatId, "Користувача підтверджено: " + user.getFirstName() + " " + user.getLastName());
-            messageService.sendMessage(userId, "Вашу заявку підтверджено. Тепер ви можете користуватися ботом.");
+
+            String userMessage = "🎉 Вашу заявку підтверджено!\n\n" +
+                    "🆓 Ви отримуєте можливість користуватися ботом абсолютно безкоштовно протягом наступних 15 днів! Це чудова можливість ознайомитись із усіма його функціями та перевагами.\n\n" +
+                    "💰 Після закінчення пробного періоду вартість користування ботом складатиме 100 грн на місяць. Ми завчасно нагадаємо вам про необхідність оплати, щоб ви могли без перерв продовжувати користуватись нашими послугами.\n\n" +
+                    "Дякуємо, що вибрали наш сервіс! Якщо у вас виникнуть питання чи потрібна додаткова інформація, будь ласка, звертайтесь до підтримки.";
+            messageService.sendMessage(userId, userMessage);
         });
     }
 
@@ -113,42 +97,14 @@ public class AdminHandler {
         Long adminChatId = update.getMessage().getChatId();
 
         for (User user : confirmedUsers) {
-            InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
-            List<InlineKeyboardButton> rowInline = new ArrayList<>();
-
-            // Кнопка для блокування користувача
-            InlineKeyboardButton blockButton = new InlineKeyboardButton();
-            blockButton.setText("Блокувати");
-            blockButton.setCallbackData("BLOCK_" + user.getChatId());
-            rowInline.add(blockButton);
-
-/*
-            // Кнопка для розблокування користувача
-            InlineKeyboardButton unblockButton = new InlineKeyboardButton();
-            unblockButton.setText("Розблокувати");
-            unblockButton.setCallbackData("UNBLOCK_" + user.getChatId());
-            rowInline.add(unblockButton);
-*/
-
-            InlineKeyboardButton deleteButton = new InlineKeyboardButton();
-            deleteButton.setText("Видалити");
-            deleteButton.setCallbackData("DELETE_USER_" + user.getChatId());
-            rowInline.add(deleteButton);
-
-
-
-            rowsInline.add(rowInline);
-            markupInline.setKeyboard(rowsInline);
-
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(adminChatId));
             message.setText("Користувач: " + user.getFirstName() + " " + user.getLastName());
-            message.setReplyMarkup(markupInline);
-
+            message.setReplyMarkup(AdminButtons.getUserListButtons(user.getChatId()));
             messageService.sendMessage(message);
         }
     }
+
     public void showBlockedUsers(Long adminChatId) throws TelegramApiException {
         List<User> blockedUsers = userService.findUsersByStatus(UserStatus.BLOCKED);
         if (blockedUsers.isEmpty()) {
@@ -157,29 +113,12 @@ public class AdminHandler {
         }
 
         for (User user : blockedUsers) {
-            InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
-            List<InlineKeyboardButton> rowInline = new ArrayList<>();
-
-            InlineKeyboardButton unblockButton = new InlineKeyboardButton();
-            unblockButton.setText("Розблокувати");
-            unblockButton.setCallbackData("UNBLOCK_" + user.getChatId());
-            rowInline.add(unblockButton);
-
-            InlineKeyboardButton deleteButton = new InlineKeyboardButton();
-            deleteButton.setText("Видалити");
-            deleteButton.setCallbackData("DELETE_USER_" + user.getChatId());
-            rowInline.add(deleteButton);
-
-            rowsInline.add(rowInline);
-            markupInline.setKeyboard(rowsInline);
-
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(adminChatId));
             message.setText("Заблокований користувач: " + user.getFirstName() + " " + user.getLastName());
-            message.setReplyMarkup(markupInline);
-
+            message.setReplyMarkup(AdminButtons.getBlockedUserButtons(user.getChatId()));
             messageService.sendMessage(message);
         }
     }
+
 }

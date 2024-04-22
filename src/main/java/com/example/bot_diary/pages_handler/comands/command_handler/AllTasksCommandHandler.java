@@ -3,7 +3,7 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.service.TaskService;
-import com.example.bot_diary.utilities.MessageUtils;
+import com.example.bot_diary.utilities.UserButtons;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -31,7 +31,7 @@ public class AllTasksCommandHandler {
             message.setText("Задач немає.");
             messageService.sendMessage(message);
         } else {
-            MessageUtils.sendTaskMessages(tasks, chatId, messageService);
+            UserButtons.sendTaskMessages(tasks, chatId, messageService);
         }
     }
 

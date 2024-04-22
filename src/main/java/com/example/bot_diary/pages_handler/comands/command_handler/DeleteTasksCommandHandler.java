@@ -27,4 +27,5 @@ public class DeleteTasksCommandHandler {
 
         messageService.sendMessage(message);
     }
+
 }

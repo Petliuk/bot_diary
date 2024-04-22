@@ -2,6 +2,7 @@ package com.example.bot_diary.utilities;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
@@ -28,6 +29,9 @@ public class SchedulerUtil {
         setCommandsForAdmin();
     }
 
+    @Value("${admin.chat.id}")
+    private Long adminChatId;
+
     private void setCommandsForAllUsers() {
         List<BotCommand> commandsForAllUsers = new ArrayList<>();
         commandsForAllUsers.add(new BotCommand("/start", "На початок."));
@@ -36,7 +40,7 @@ public class SchedulerUtil {
         commandsForAllUsers.add(new BotCommand("/done", "Виконані задачі."));
         commandsForAllUsers.add(new BotCommand("/postponed", "Відкладені задачі."));
         commandsForAllUsers.add(new BotCommand("/calendar", "Календар"));
-
+        commandsForAllUsers.add(new BotCommand("/help", "Отримати допомогу."));
         try {
             bot.execute(new SetMyCommands(commandsForAllUsers, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e) {
@@ -55,7 +59,8 @@ public class SchedulerUtil {
         commandsForAdmin.add(new BotCommand("/b", "Заяви."));
         commandsForAdmin.add(new BotCommand("/users", "Користувачі"));
         commandsForAdmin.add(new BotCommand("/blockedusers", "Заблоковані Користувачі"));
-        BotCommandScope scopeForAdmin = new BotCommandScopeChat(String.valueOf(712909082L));
+        commandsForAdmin.add(new BotCommand("/help", "Отримати допомогу."));
+        BotCommandScope scopeForAdmin = new BotCommandScopeChat(String.valueOf(adminChatId));
 
 
 
@@ -65,4 +70,5 @@ public class SchedulerUtil {
             log.error("Error setting bot's command list for admin: " + e.getMessage());
         }
     }
+
 }

@@ -27,16 +27,17 @@ public class Task {
     @Column(name = "status", nullable = false)
     private TaskStatus status;
 
-
-    @Column(name = "due_date", columnDefinition="TIMESTAMP")
+    @Column(name = "due_date", columnDefinition = "TIMESTAMP")
     private LocalDateTime dueDate;
 
     @Column(name = "timezone")
-    private String timezone;  // Зберігати як 'Europe/London', 'America/New_York' тощо.
-
+    private String timezone;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_chat_id", nullable = false)
     private User user;
+
+    @Column(name = "notification_time", columnDefinition = "TIMESTAMP")
+    private LocalDateTime notificationTime;
 
 }

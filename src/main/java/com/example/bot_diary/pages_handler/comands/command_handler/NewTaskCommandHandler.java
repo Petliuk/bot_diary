@@ -4,9 +4,10 @@ import com.example.bot_diary.job.NotificationScheduler;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.models.User;
+import com.example.bot_diary.models.UserState;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.service.UserService;
-import com.example.bot_diary.utilities.MessageUtils;
+import com.example.bot_diary.utilities.UserButtons;
 import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -14,47 +15,34 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.time.*;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Component
 public class NewTaskCommandHandler {
-    public enum UserState {
-        NONE,
-        AWAITING_TASK_DESCRIPTION,
-        TASK_CREATED,
-        AWAITING_NOTIFICATION_DATE,
-        AWAITING_NOTIFICATION_TIME
-    }
 
     private final Map<Long, String> taskDescriptions = new HashMap<>();
     private final Map<Long, LocalDate> selectedDates = new HashMap<>();
 
     @Autowired
     private UserService userService;
-
     @Autowired
     private TimePickerHandler timePickerHandler;
-
     @Autowired
     private MessageService messageService;
-
     @Autowired
     private TaskService taskService;
-
     @Autowired
     private CalendarHandler calendarHandler;
-
     @Autowired
     private NotificationScheduler notificationScheduler;
 
     private final Map<Long, UserState> userStates = new HashMap<>();
+
     public Map<Long, UserState> getUserStates() {
         return userStates;
     }
@@ -82,30 +70,26 @@ public class NewTaskCommandHandler {
     private void createTask(Update update) throws TelegramApiException {
         long chatId = update.getMessage().getChatId();
         String taskDescription = update.getMessage().getText();
-        taskDescriptions.put(chatId, taskDescription);
-
-        String firstName = update.getMessage().getFrom().getFirstName(); // Ім'я завжди присутнє
-        String lastName = update.getMessage().getFrom().getLastName(); // Прізвище може бути null
-        String userName = update.getMessage().getFrom().getUserName(); // Юзернейм може бути null
 
         Optional<User> userOptional = userService.findUserByChatId(chatId);
-        User user = userOptional.orElseGet(() -> userService.createUser(chatId, firstName, lastName, userName));
+        User user = userOptional.orElseGet(() -> userService.createUser(chatId,
+                update.getMessage().getFrom().getFirstName(),
+                update.getMessage().getFrom().getLastName(),
+                update.getMessage().getFrom().getUserName()));
 
-        Task task = new Task();
-        task.setDescription(taskDescription);
-        task.setUser(user);
-        task.setStatus(TaskStatus.NOT_COMPLETED);
-        taskService.saveTask(task);
+        if (taskService.countUserTasks(user.getChatId()) >= 200) {
+            messageService.sendMessage(chatId, "Ви вже створили максимально дозволену кількість завдань (200). Видаліть існуючі завдання, щоб створити нові.");
+            return;
+        }
 
+        taskDescriptions.put(chatId, taskDescription);
         userStates.put(chatId, UserState.TASK_CREATED);
         sendOptionsAfterTaskCreation(chatId);
     }
 
     private void sendOptionsAfterTaskCreation(long chatId) throws TelegramApiException {
-        List<List<InlineKeyboardButton>> buttons = MessageUtils.createConfirmationButtons("Так", "continue_creation", "Ні", "save_task");
-
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(buttons);
+        inlineKeyboardMarkup.setKeyboard(UserButtons.createConfirmationButtons("Так", "continue_creation", "Ні", "save_task_now"));
 
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
@@ -114,22 +98,23 @@ public class NewTaskCommandHandler {
         messageService.sendMessage(message);
     }
 
-    public void saveTaskAndNotifyUser(CallbackQuery callbackQuery) throws TelegramApiException {
+    public void saveTaskAndNotifyUser(CallbackQuery callbackQuery) {
         Long chatId = callbackQuery.getMessage().getChatId();
-        String taskDescription = taskDescriptions.getOrDefault(chatId, "Опис не знайдено");
 
-        Optional<User> userOptional = userService.findUserByChatId(chatId);
-        User user = userOptional.orElseGet(() -> userService.createUser(chatId, null, null, null)); // Використання null для імені, прізвища та юзернейма, оскільки ми не маємо цих даних
+        if (!userStates.getOrDefault(chatId, UserState.NONE).equals(UserState.TASK_CREATED)) {
+            messageService.sendMessage(chatId, "Задача вже була збережена або не була створена.");
+            return;
+        }
 
+        String taskDescription = taskDescriptions.get(chatId);
         Task task = new Task();
         task.setDescription(taskDescription);
-        task.setUser(user);
+        task.setUser(userService.findUserByChatId(chatId).orElse(null));
         task.setStatus(TaskStatus.NOT_COMPLETED);
+
         taskService.saveTask(task);
 
         userStates.put(chatId, UserState.NONE);
-        taskDescriptions.remove(chatId);
-
         messageService.sendMessage(chatId, "Ваша задача збережена.");
     }
 
@@ -155,7 +140,7 @@ public class NewTaskCommandHandler {
         messageService.sendMessage(timePickerMessage);
     }
 
-    public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) throws TelegramApiException {
+    public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) {
         LocalDate notificationDate = selectedDates.get(chatId);
         if (notificationDate == null) {
             messageService.sendMessage(chatId, "Не вдалося налаштувати сповіщення: дата не визначена.");
@@ -166,17 +151,18 @@ public class NewTaskCommandHandler {
         String taskDescription = taskDescriptions.get(chatId);
 
         Optional<User> userOptional = userService.findUserByChatId(chatId);
-        User user = userOptional.orElseGet(() -> userService.createUser(chatId, null, null, null)); // Використання null для імені, прізвища та юзернейма, оскільки ми не маємо цих даних
+        User user = userOptional.orElseGet(() -> userService.createUser(chatId, null, null, null));
 
         Task task = new Task();
         task.setDescription(taskDescription);
         task.setUser(user);
         task.setStatus(TaskStatus.NOT_COMPLETED);
         task.setDueDate(notificationDateTime);
+        task.setNotificationTime(notificationDateTime.minusMinutes(10));
         taskService.saveTask(task);
 
         try {
-            notificationScheduler.scheduleNotification(chatId, notificationDateTime, Duration.ofMinutes(10));
+            notificationScheduler.scheduleNotification(chatId, notificationDateTime, Duration.ofMinutes(10), taskDescription);
         } catch (SchedulerException e) {
             e.printStackTrace();
         }
@@ -186,4 +172,5 @@ public class NewTaskCommandHandler {
         userStates.put(chatId, UserState.NONE);
         messageService.sendMessage(chatId, "Ваша задача збережена і ви отримаєте сповіщення за 10 хвилин до початку.");
     }
+
 }

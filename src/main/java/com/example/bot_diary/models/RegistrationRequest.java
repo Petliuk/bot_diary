@@ -7,7 +7,6 @@ import lombok.Setter;
 public class RegistrationRequest {
 
     private Long chatId;
-    // Додаткові поля за потребою
 
     public RegistrationRequest(Long chatId) {
         this.chatId = chatId;
