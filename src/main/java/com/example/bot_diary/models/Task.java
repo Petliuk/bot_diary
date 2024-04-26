@@ -40,4 +40,11 @@ public class Task {
     @Column(name = "notification_time", columnDefinition = "TIMESTAMP")
     private LocalDateTime notificationTime;
 
+    public Task(String description, TaskStatus status, LocalDateTime dueDate, LocalDateTime notificationTime, User user) {
+        this.description = description;
+        this.status = status;
+        this.dueDate = dueDate;
+        this.notificationTime = notificationTime;
+        this.user = user;
+    }
 }
