@@ -36,10 +36,10 @@ public class TelegramBot extends TelegramLongPollingBot{
         return config.getToken();
     }
 
-    @Override
+/*    @Override
     public void onRegister() {
         super.onRegister();
-    }
+    }*/
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -54,10 +54,10 @@ public class TelegramBot extends TelegramLongPollingBot{
         }
     }
 
-    @Override
+/*    @Override
     public void onUpdatesReceived(List<Update> updates) {
         super.onUpdatesReceived(updates);
-    }
+    }*/
 
 }
 

@@ -8,6 +8,7 @@ import com.example.bot_diary.models.UserState;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.service.UserService;
 import com.example.bot_diary.utilities.UserButtons;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -23,10 +24,9 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
+@Slf4j
 public class NewTaskCommandHandler {
 
-    private final Map<Long, String> taskDescriptions = new HashMap<>();
-    private final Map<Long, LocalDate> selectedDates = new HashMap<>();
 
     @Autowired
     private UserService userService;
@@ -41,7 +41,11 @@ public class NewTaskCommandHandler {
     @Autowired
     private NotificationScheduler notificationScheduler;
 
+    private final Map<Long, String> taskDescriptions = new HashMap<>();
+    private final Map<Long, LocalDate> selectedDates = new HashMap<>();
     private final Map<Long, UserState> userStates = new HashMap<>();
+    private final Map<Long, Integer> notificationHours = new HashMap<>();
+    private final Map<Long, Integer> notificationMinutes = new HashMap<>();
 
     public Map<Long, UserState> getUserStates() {
         return userStates;
@@ -141,36 +145,43 @@ public class NewTaskCommandHandler {
     }
 
     public void saveTaskWithNotificationTime(Long chatId, int hour, int minute) {
-        LocalDate notificationDate = selectedDates.get(chatId);
-        if (notificationDate == null) {
-            messageService.sendMessage(chatId, "Не вдалося налаштувати сповіщення: дата не визначена.");
+        LocalDate dueDate = selectedDates.get(chatId);
+        if (dueDate == null) {
+            messageService.sendMessage(chatId, "Не вдалося налаштувати час завдання: дата не визначена.");
             return;
         }
 
-        LocalDateTime notificationDateTime = LocalDateTime.of(notificationDate, LocalTime.of(hour, minute));
+        LocalDateTime dueDateTime = LocalDateTime.of(dueDate, LocalTime.of(hour, minute));
         String taskDescription = taskDescriptions.get(chatId);
-
-        Optional<User> userOptional = userService.findUserByChatId(chatId);
-        User user = userOptional.orElseGet(() -> userService.createUser(chatId, null, null, null));
+        User user = userService.findUserByChatId(chatId).orElse(null);
 
         Task task = new Task();
         task.setDescription(taskDescription);
         task.setUser(user);
         task.setStatus(TaskStatus.NOT_COMPLETED);
-        task.setDueDate(notificationDateTime);
-        task.setNotificationTime(notificationDateTime.minusMinutes(10));
+        task.setDueDate(dueDateTime);
+
         taskService.saveTask(task);
 
-        try {
-            notificationScheduler.scheduleNotification(chatId, notificationDateTime, Duration.ofMinutes(10), taskDescription);
-        } catch (SchedulerException e) {
-            e.printStackTrace();
-        }
+      /*  updateNotificationTime(chatId, dueDate, hour, minute);*/
 
-        selectedDates.remove(chatId);
+/*        selectedDates.remove(chatId);*/
         taskDescriptions.remove(chatId);
         userStates.put(chatId, UserState.NONE);
-        messageService.sendMessage(chatId, "Ваша задача збережена і ви отримаєте сповіщення за 10 хвилин до початку.");
+        messageService.sendMessage(chatId, "Вшв задача збережена з часом. ");
     }
 
+    public void updateNotificationTime(Long chatId, LocalDate date, int hour, int minute) {
+
+        LocalDateTime notificationTime = LocalDateTime.of(date, LocalTime.of(hour, minute));
+        Task task = taskService.findLastTaskByChatId(chatId);
+        if (task != null) {
+            task.setNotificationTime(notificationTime);
+            taskService.saveTask(task);
+            messageService.sendMessage(chatId, "Час сповіщення для вашої задачі було оновлено.");
+            selectedDates.remove(chatId);
+        } else {
+            messageService.sendMessage(chatId, "Задача не знайдена.");
+        }
+    }
 }

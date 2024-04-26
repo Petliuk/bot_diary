@@ -5,7 +5,9 @@ import com.example.bot_diary.models.UserState;
 import com.example.bot_diary.models.UserStatus;
 import com.example.bot_diary.pages_handler.comands.command_handler.*;
 import com.example.bot_diary.service.UserService;
+import com.example.bot_diary.utilities.ChecksForAccess;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.annotations.Check;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -37,6 +39,8 @@ public class CommandHandler {
     private UserService userService;
     @Autowired
     private MessageService messageService;
+    @Autowired
+    private ChecksForAccess checksForAccess;
 
     @Value("${admin.chat.id}")
     private Long adminChatId;
@@ -46,7 +50,7 @@ public class CommandHandler {
         Optional<User> userOptional = userService.findUserByChatId(chatId);
         String messageText = update.getMessage().getText();
 
-        if (!isUserEligibleToProceed(chatId, userOptional, messageText)) return;
+        if (!checksForAccess.isUserEligibleToProceed(chatId, userOptional, messageText)) return;
 
         UserState currentState = newTaskCommandHandler.getUserStates().getOrDefault(chatId, UserState.NONE);
         if (currentState == UserState.AWAITING_TASK_DESCRIPTION && messageText.startsWith("/")) {
@@ -70,28 +74,6 @@ public class CommandHandler {
                 break;
             default: handleDefaultCommand(chatId, currentState, update);
         }
-    }
-    private boolean isUserEligibleToProceed(long chatId, Optional<User> userOptional, String messageText) throws TelegramApiException {
-        if (userOptional.isPresent()) {
-            UserStatus status = userOptional.get().getStatus();
-
-            if (status == UserStatus.BLOCKED) {
-                messageService.sendMessage(chatId, "Ви заблоковані та більше немаєте доступу до бота.");
-                return false;
-            }
-
-            if (status == UserStatus.UNCONFIRMED) {
-                messageService.sendMessage(chatId, "Вашу заявку ще не підтверджено. Будь ласка, зачекайте, поки адміністратор перевірить вашу заявку.");
-                return false;
-            }
-        }
-
-        if (!userOptional.isPresent() && !"/start".equals(messageText)) {
-            SendMessage message = new SendMessage(String.valueOf(chatId), "Будь ласка, спочатку зареєструйтесь, використовуючи команду /start.");
-            messageService.sendMessage(message);
-            return false;
-        }
-        return true;
     }
 
     private void handleAdminCommands(long chatId, String messageText, Update update) throws TelegramApiException {

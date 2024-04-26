@@ -34,5 +34,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     @Query("SELECT COUNT(t) FROM Task t WHERE t.user.chatId = :userId")
     long countByUserChatId(@Param("userId") Long userId);
+    Optional<Task> findFirstByUserChatIdOrderByDueDateDesc(Long chatId);
+
 }
 

@@ -1,5 +1,6 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
+import com.example.bot_diary.utilities.UserButtons;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -104,7 +105,7 @@ public class TimePickerHandler {
         messageService.sendMessage(minutePickerMessage);
     }
 
-    public void handleMinuteSelection(Update update) {
+    public void handleMinuteSelection(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();
         String[] parts = callbackData.split("_");
         int chosenHour = Integer.parseInt(parts[1]);
@@ -112,6 +113,18 @@ public class TimePickerHandler {
         long chatId = update.getCallbackQuery().getMessage().getChatId();
 
         newTaskCommandHandler.saveTaskWithNotificationTime(chatId, chosenHour, chosenMinute);
-    }
 
+        // Відображення запиту про налаштування сповіщення
+        showNotificationSetupQuery(chatId);
+    }
+    private void showNotificationSetupQuery(long chatId) throws TelegramApiException {
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(UserButtons.createConfirmationButtons("Так", "yes_notify", "Ні", "no_notify"));
+
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Бажаєте налаштувати сповіщення?");
+        message.setReplyMarkup(inlineKeyboardMarkup);
+        messageService.sendMessage(message);
+    }
 }

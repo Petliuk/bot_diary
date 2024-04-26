@@ -3,13 +3,14 @@ package com.example.bot_diary.pages_handler.comands;
 import com.example.bot_diary.models.RegistrationRequest;
 import com.example.bot_diary.models.User;
 import com.example.bot_diary.models.UserState;
-import com.example.bot_diary.models.UserStatus;
 import com.example.bot_diary.pages_handler.comands.command_handler.*;
 import com.example.bot_diary.service.UserService;
+import com.example.bot_diary.utilities.ChecksForAccess;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -55,6 +56,15 @@ public class CallbackQueryHandler {
     @Value("${admin.chat.id}")
     private Long adminChatId;
 
+    @Autowired
+    private ChecksForAccess checksForAccess;
+
+    @Autowired
+    private  UserRegistrationHandler userRegistrationHandler;
+
+    @Autowired
+    private NotificationTimePickerHandler notificationTimePickerHandler;
+
     public void handleCallbackQuery(Update update) throws TelegramApiException {
         long chatId = update.getCallbackQuery().getMessage().getChatId();
         String callbackData = update.getCallbackQuery().getData();
@@ -63,20 +73,16 @@ public class CallbackQueryHandler {
         UserState currentState = newTaskCommandHandler.getUserStates().getOrDefault(chatId, UserState.NONE);
         int messageId = update.getCallbackQuery().getMessage().getMessageId();
 
-        if (userOptional.isPresent() && userOptional.get().getStatus() == UserStatus.BLOCKED) {
-            messageService.sendMessage(chatId, "Ви заблоковані та більше немаєте доступу до боту.");
-            return;
-        }
-        if (!(chatId == adminChatId) && userOptional.isPresent() && userOptional.get().getStatus() == UserStatus.UNCONFIRMED) {
-            messageService.sendMessage(chatId, "Вашу заявку ще не підтверджено. Будь ласка, зачекайте, поки адміністратор перевірить вашу заявку.");
-            return;
+        if (!checksForAccess.preChecks(update, currentState, userOptional, chatId)) {
+            return; // Stop processing if pre-checks fail
         }
 
-        if (callbackData.equals("continue_creation") || callbackData.equals("save_task_now")) {
-            if (currentState != UserState.TASK_CREATED) {
-                messageService.sendMessage(chatId, "Ці кнопки доступні тільки під час створення задачі.");
-                return;
-            }
+        if (callbackData.startsWith("HOURS_")) {
+            notificationTimePickerHandler.handleHourSelection(update);
+        }
+        // Обробка вибору хвилин
+        else if (callbackData.startsWith("MINUTES_")) {
+            notificationTimePickerHandler.handleMinuteSelection(update);
         }
 
         if (callbackData.startsWith("HOUR_")) {
@@ -97,7 +103,7 @@ public class CallbackQueryHandler {
             try {
                 String userIdStr = callbackData.substring("DELETE_USER_".length());
                 Long userId = Long.parseLong(userIdStr);
-                deleteUser(userId, chatId);
+                checksForAccess.deleteUser(userId, chatId);
             } catch (NumberFormatException e) {
                 messageService.sendMessage(chatId, "Помилка: неправильний формат ID користувача.");
                 log.error("Error parsing user ID: ", e);
@@ -118,6 +124,14 @@ public class CallbackQueryHandler {
                 break;
             case "APPLY_NO":
                 messageService.sendMessage(chatId, "Ви вирішили не надсилати заявку.");
+                break;
+            case "yes_notify":
+                // Отримання повідомлення для вибору години
+                SendMessage hourPickerMessage = notificationTimePickerHandler.createHourPickerMessage(chatId);
+                messageService.sendMessage(hourPickerMessage);
+                break;
+            case "no_notify":
+                userRegistrationHandler.sendMainMenu(chatId);;
                 break;
         }
 
@@ -150,53 +164,10 @@ public class CallbackQueryHandler {
             adminHandler.confirmUser(userId, chatId);
         } else if (callbackData.startsWith("BLOCK_")) {
             Long userId = Long.valueOf(callbackData.split("_")[1]);
-            blockUser(userId, adminChatId);
+            checksForAccess.blockUser(userId, adminChatId);
         } else if (callbackData.startsWith("UNBLOCK_")) {
             Long userId = Long.valueOf(callbackData.split("_")[1]);
-            unblockUser(userId);
-        }
-    }
-
-    public void blockUser(Long userId, Long adminChatId) {
-        if (userId.equals(adminChatId)) {
-            messageService.sendMessage(adminChatId, "Ти себе не зможеш заблокувати, ти ж адмін");
-        } else {
-            userService.findUserByChatId(userId).ifPresent(user -> {
-                if (user.getStatus() != UserStatus.BLOCKED) {
-                    user.setStatus(UserStatus.BLOCKED);
-                    userService.saveUser(user);
-
-                    messageService.sendMessage(adminChatId, String.format("Користувача %s %s (ID: %d) заблоковано.",
-                            user.getFirstName(), user.getLastName(), userId));
-
-                    messageService.sendMessage(userId, "Ви були заблоковані та більше не маєте доступу до бота.");
-                }
-            });
-        }
-    }
-
-    private void unblockUser(Long userId) {
-        userService.findUserByChatId(userId).ifPresent(user -> {
-            user.setStatus(UserStatus.CONFIRMED);
-            userService.saveUser(user);
-
-            String adminMessage = String.format("Користувача %s %s (ID: %d) розблоковано.",
-                    user.getFirstName(), user.getLastName(), user.getChatId());
-            messageService.sendMessage(adminChatId, adminMessage);
-
-            String userMessage = "Ваш доступ до боту було відновлено.";
-            messageService.sendMessage(user.getChatId(), userMessage);
-        });
-    }
-
-    private void deleteUser(Long userId, Long adminChatId) {
-        if (userId.equals(adminChatId)) {
-            messageService.sendMessage(adminChatId, "Ти себе не зможеш видалити, ти ж адмін");
-        } else {
-            userService.findUserByChatId(userId).ifPresent(user -> {
-                userService.deleteUser(user);
-                messageService.sendMessage(adminChatId, "Користувача видалено: " + user.getFirstName() + " " + user.getLastName());
-            });
+            checksForAccess.unblockUser(userId);
         }
     }
 
