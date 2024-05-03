@@ -1,7 +1,10 @@
 package com.example.bot_diary.utilities;
 
+import com.example.bot_diary.models.Notification;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.pages_handler.comands.BotService;
+import com.example.bot_diary.pages_handler.comands.command_handler.MessageService;
+import com.example.bot_diary.service.NotificationService;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -30,21 +33,35 @@ public class UserButtons {
     }
 
     public static InlineKeyboardButton createButton(String text, String callbackData) {
+        if (text == null || text.isEmpty()) throw new IllegalArgumentException("Button text cannot be null or empty");
+        if (callbackData == null || callbackData.isEmpty()) throw new IllegalArgumentException("Callback data cannot be null or empty");
+
         InlineKeyboardButton button = new InlineKeyboardButton();
         button.setText(text);
         button.setCallbackData(callbackData);
         return button;
     }
 
-    public static void sendTaskMessages(List<Task> tasks, long chatId, BotService botService) throws TelegramApiException {
+    public static void sendTaskMessagesWithNotifications(List<Task> tasks, long chatId, MessageService messageService, NotificationService notificationService) throws TelegramApiException {
         for (Task task : tasks) {
-            List<InlineKeyboardButton> buttons = new ArrayList<>();
-            buttons.add(createButton("Видалити", "DELETE_TASK_" + task.getId()));
-            buttons.add(createButton("Виконано", "DONE_TASK_" + task.getId()));
-            buttons.add(createButton("Відкласти", "POSTPONE_TASK_" + task.getId()));
+            List<Notification> notifications = notificationService.findNotificationsByTaskId(task.getId());
 
-            SendMessage message = createTaskMessage(task, chatId, buttons);
-            botService.sendMessage(message);
+            List<InlineKeyboardButton> firstRowButtons = new ArrayList<>();
+            firstRowButtons.add(createButton("Видалити", "DELETE_TASK_" + task.getId()));
+            firstRowButtons.add(createButton("Виконано", "DONE_TASK_" + task.getId()));
+            firstRowButtons.add(createButton("Відкласти", "POSTPONE_TASK_" + task.getId()));
+
+            List<InlineKeyboardButton> secondRowButtons = new ArrayList<>();
+            secondRowButtons.add(createButton("Змінити", "UPDATE_TASK_" + task.getId()));
+            secondRowButtons.add(createButton("Додати сповіщення", "ADD_NOTIFICATION_TASK_" + task.getId()));
+
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            rows.add(firstRowButtons);
+            rows.add(secondRowButtons);
+
+            String notificationDetails = formatNotificationDetails(notifications);
+            SendMessage message = createTaskMessageWithNotifications(task, chatId, rows, notificationDetails);
+            messageService.sendMessage(message);
         }
     }
 
@@ -69,6 +86,28 @@ public class UserButtons {
                         "⏰ Час: " + task.getDueDate().toLocalTime() + "\n" : "Дата і час не вказані.\n";
         return dateText + "🔖 Статус: " + task.getStatus().getDisplayName() + "\n" +
                 "📝 Опис: " + task.getDescription() + "\n";
+    }
+
+    private static String formatNotificationDetails(List<Notification> notifications) {
+        StringBuilder details = new StringBuilder();
+        for (Notification notification : notifications) {
+            details.append(String.format("🔔 Notification at %s\n", notification.getNotificationTime()));
+        }
+        return details.toString();
+    }
+
+    public static SendMessage createTaskMessageWithNotifications(Task task, long chatId, List<List<InlineKeyboardButton>> rows, String notificationDetails) {
+        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        markupInline.setKeyboard(rows);
+
+        String messageText = formatTaskText(task) + (!notificationDetails.isEmpty() ? "\nNotifications:\n" + notificationDetails : "");
+
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(messageText);
+        message.setReplyMarkup(markupInline);
+
+        return message;
     }
 
     public static void sendTasksWithCustomButtons(List<Task> tasks, long chatId, BotService botService, Function<Task, List<InlineKeyboardButton>> buttonsProvider) throws TelegramApiException {

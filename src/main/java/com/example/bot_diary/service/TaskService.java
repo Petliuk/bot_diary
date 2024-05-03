@@ -79,8 +79,4 @@ public class TaskService {
         }
     }
 
-    public Task findLastTaskByChatId(Long chatId) {
-        return taskRepository.findFirstByUserChatIdOrderByDueDateDesc(chatId).orElse(null);
-    }
-
 }

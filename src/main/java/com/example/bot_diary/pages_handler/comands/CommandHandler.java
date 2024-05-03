@@ -2,16 +2,13 @@ package com.example.bot_diary.pages_handler.comands;
 
 import com.example.bot_diary.models.User;
 import com.example.bot_diary.models.UserState;
-import com.example.bot_diary.models.UserStatus;
 import com.example.bot_diary.pages_handler.comands.command_handler.*;
 import com.example.bot_diary.service.UserService;
 import com.example.bot_diary.utilities.ChecksForAccess;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.annotations.Check;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
