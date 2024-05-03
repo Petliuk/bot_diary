@@ -1,6 +1,5 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
-import com.example.bot_diary.job.NotificationScheduler;
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
 import com.example.bot_diary.models.User;
@@ -9,7 +8,6 @@ import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.service.UserService;
 import com.example.bot_diary.utilities.UserButtons;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -38,14 +36,10 @@ public class NewTaskCommandHandler {
     private TaskService taskService;
     @Autowired
     private CalendarHandler calendarHandler;
-    @Autowired
-    private NotificationScheduler notificationScheduler;
 
     private final Map<Long, String> taskDescriptions = new HashMap<>();
     private final Map<Long, LocalDate> selectedDates = new HashMap<>();
     private final Map<Long, UserState> userStates = new HashMap<>();
-    private final Map<Long, Integer> notificationHours = new HashMap<>();
-    private final Map<Long, Integer> notificationMinutes = new HashMap<>();
 
     public Map<Long, UserState> getUserStates() {
         return userStates;
@@ -163,25 +157,10 @@ public class NewTaskCommandHandler {
 
         taskService.saveTask(task);
 
-      /*  updateNotificationTime(chatId, dueDate, hour, minute);*/
-
-/*        selectedDates.remove(chatId);*/
+        selectedDates.remove(chatId);
         taskDescriptions.remove(chatId);
         userStates.put(chatId, UserState.NONE);
-        messageService.sendMessage(chatId, "Вшв задача збережена з часом. ");
+        messageService.sendMessage(chatId, "Ваша задача збережена. ");
     }
 
-    public void updateNotificationTime(Long chatId, LocalDate date, int hour, int minute) {
-
-        LocalDateTime notificationTime = LocalDateTime.of(date, LocalTime.of(hour, minute));
-        Task task = taskService.findLastTaskByChatId(chatId);
-        if (task != null) {
-            task.setNotificationTime(notificationTime);
-            taskService.saveTask(task);
-            messageService.sendMessage(chatId, "Час сповіщення для вашої задачі було оновлено.");
-            selectedDates.remove(chatId);
-        } else {
-            messageService.sendMessage(chatId, "Задача не знайдена.");
-        }
-    }
 }

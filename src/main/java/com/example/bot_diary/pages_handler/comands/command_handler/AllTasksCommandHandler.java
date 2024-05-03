@@ -2,6 +2,7 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 
 import com.example.bot_diary.models.Task;
 import com.example.bot_diary.models.TaskStatus;
+import com.example.bot_diary.service.NotificationService;
 import com.example.bot_diary.service.TaskService;
 import com.example.bot_diary.utilities.UserButtons;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,11 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class AllTasksCommandHandler {
-
     private final MessageService messageService;
     private final TaskService taskService;
+    private final NotificationService notificationService;
 
     public void handle(Update update) throws TelegramApiException {
-
         long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
         List<Task> tasks = taskService.findTasksByStatusAndUserChatId(TaskStatus.NOT_COMPLETED, chatId);
 
@@ -31,8 +31,7 @@ public class AllTasksCommandHandler {
             message.setText("Задач немає.");
             messageService.sendMessage(message);
         } else {
-            UserButtons.sendTaskMessages(tasks, chatId, messageService);
+            UserButtons.sendTaskMessagesWithNotifications(tasks, chatId, messageService, notificationService);
         }
     }
-
 }

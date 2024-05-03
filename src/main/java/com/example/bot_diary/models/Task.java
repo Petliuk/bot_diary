@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "tasks")
@@ -37,14 +38,9 @@ public class Task {
     @JoinColumn(name = "user_chat_id", nullable = false)
     private User user;
 
-    @Column(name = "notification_time", columnDefinition = "TIMESTAMP")
-    private LocalDateTime notificationTime;
+  /*  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Notification> notifications;*/
 
-    public Task(String description, TaskStatus status, LocalDateTime dueDate, LocalDateTime notificationTime, User user) {
-        this.description = description;
-        this.status = status;
-        this.dueDate = dueDate;
-        this.notificationTime = notificationTime;
-        this.user = user;
-    }
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Notification> notifications;
 }

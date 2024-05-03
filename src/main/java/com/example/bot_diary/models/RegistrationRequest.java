@@ -1,4 +1,5 @@
 package com.example.bot_diary.models;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,4 +12,5 @@ public class RegistrationRequest {
     public RegistrationRequest(Long chatId) {
         this.chatId = chatId;
     }
+
 }

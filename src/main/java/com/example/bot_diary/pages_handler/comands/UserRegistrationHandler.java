@@ -49,7 +49,7 @@ public class UserRegistrationHandler {
                     .build();
             userService.saveUser(newUser);
             sendRegistrationRequest(chatId);
-            notifyAdminAboutNewUser(newUser);  // Новий метод для повідомлення адміністратора
+            notifyAdminAboutNewUser(newUser);
         }
     }
 

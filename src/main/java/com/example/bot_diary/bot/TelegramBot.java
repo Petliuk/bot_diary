@@ -10,8 +10,6 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.List;
-
 @Slf4j
 @Component
 public class TelegramBot extends TelegramLongPollingBot{
@@ -36,11 +34,6 @@ public class TelegramBot extends TelegramLongPollingBot{
         return config.getToken();
     }
 
-/*    @Override
-    public void onRegister() {
-        super.onRegister();
-    }*/
-
     @Override
     public void onUpdateReceived(Update update) {
         try {
@@ -51,13 +44,9 @@ public class TelegramBot extends TelegramLongPollingBot{
             }
         } catch (TelegramApiException e) {
             log.error("Error occurred: " + e.getMessage());
+            log.error("Error occurred: " + e.toString());
         }
     }
-
-/*    @Override
-    public void onUpdatesReceived(List<Update> updates) {
-        super.onUpdatesReceived(updates);
-    }*/
 
 }
 
