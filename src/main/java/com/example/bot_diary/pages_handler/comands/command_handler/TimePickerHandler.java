@@ -1,5 +1,6 @@
 package com.example.bot_diary.pages_handler.comands.command_handler;
 
+import com.example.bot_diary.models.UserState;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -94,23 +95,28 @@ public class TimePickerHandler {
 
         return message;
     }
-    public void handleHourSelection(Update update) throws TelegramApiException {
-        String callbackData = update.getCallbackQuery().getData();
-        int chosenHour = Integer.parseInt(callbackData.substring(5));
+    public void handleHourSelection(Update update, UserState currentState) throws TelegramApiException {
         long chatId = update.getCallbackQuery().getMessage().getChatId();
-
-        SendMessage minutePickerMessage = createMinutePickerMessage(chatId, chosenHour);
-
-        messageService.sendMessage(minutePickerMessage);
+        if (currentState == UserState.AWAITING_NOTIFICATION_TIME) {
+            String callbackData = update.getCallbackQuery().getData();
+            int chosenHour = Integer.parseInt(callbackData.substring(5));
+            SendMessage minutePickerMessage = createMinutePickerMessage(chatId, chosenHour);
+            messageService.sendMessage(minutePickerMessage);
+        } else {
+            messageService.sendMessage(chatId, "Ви можете вибирати час лише під час встановлення сповіщення для задачі.");
+        }
     }
 
-    public void handleMinuteSelection(Update update) throws TelegramApiException {
-        String callbackData = update.getCallbackQuery().getData();
-        String[] parts = callbackData.split("_");
-        int chosenHour = Integer.parseInt(parts[1]);
-        int chosenMinute = Integer.parseInt(parts[2]);
+    public void handleMinuteSelection(Update update, UserState currentState) throws TelegramApiException {
         long chatId = update.getCallbackQuery().getMessage().getChatId();
-
-        newTaskCommandHandler.saveTaskWithNotificationTime(chatId, chosenHour, chosenMinute);
+        if (currentState == UserState.AWAITING_NOTIFICATION_TIME) {
+            String callbackData = update.getCallbackQuery().getData();
+            String[] parts = callbackData.split("_");
+            int chosenHour = Integer.parseInt(parts[1]);
+            int chosenMinute = Integer.parseInt(parts[2]);
+            newTaskCommandHandler.saveTaskWithNotificationTime(chatId, chosenHour, chosenMinute);
+        } else {
+            messageService.sendMessage(chatId, "Ви можете вибирати хвилини лише під час встановлення сповіщення для задачі.");
+        }
     }
 }

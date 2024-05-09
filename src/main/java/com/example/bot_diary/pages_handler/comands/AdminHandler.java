@@ -39,7 +39,11 @@ public class AdminHandler {
     private boolean isAdmin(Long chatId) {
         return chatId.equals(712909082L);
     }
-
+    public void processApplyRequest(Long chatId) {
+        RegistrationRequest request = new RegistrationRequest(chatId);
+        addPendingRequest(request); // Додаємо запит у список очікуючих
+        messageService.sendMessage(chatId, "Вашу заявку надіслано на розгляд адміністратору."); // Відправляємо повідомлення користувачу
+    }
     public void addPendingRequest(RegistrationRequest request) {
         pendingRequests.add(request);
     }

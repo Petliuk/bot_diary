@@ -38,9 +38,6 @@ public class Task {
     @JoinColumn(name = "user_chat_id", nullable = false)
     private User user;
 
-  /*  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Notification> notifications;*/
-
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Notification> notifications;
 }

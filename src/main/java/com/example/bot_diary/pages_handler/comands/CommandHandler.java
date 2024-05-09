@@ -38,6 +38,8 @@ public class CommandHandler {
     private MessageService messageService;
     @Autowired
     private ChecksForAccess checksForAccess;
+    @Autowired
+    DescriptionUpdateHandler descriptionUpdateHandler;
 
     @Value("${admin.chat.id}")
     private Long adminChatId;
@@ -49,6 +51,10 @@ public class CommandHandler {
 
         if (!checksForAccess.isUserEligibleToProceed(chatId, userOptional, messageText)) return;
 
+        if (descriptionUpdateHandler.isAwaitingDescription(chatId)) {
+            descriptionUpdateHandler.updateDescription(chatId, messageText);
+            return;
+        }
         UserState currentState = newTaskCommandHandler.getUserStates().getOrDefault(chatId, UserState.NONE);
         if (currentState == UserState.AWAITING_TASK_DESCRIPTION && messageText.startsWith("/")) {
             newTaskCommandHandler.getUserStates().put(chatId, UserState.NONE);

@@ -78,5 +78,8 @@ public class TaskService {
             saveTask(task);
         }
     }
-
+    @Transactional(readOnly = true)
+    public Task findTaskByIdWithNotifications(Long taskId) {
+        return taskRepository.findByIdWithNotifications(taskId).orElseThrow(() -> new RuntimeException("Task not found"));
+    }
 }
