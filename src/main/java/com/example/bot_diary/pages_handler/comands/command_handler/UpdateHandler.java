@@ -2,6 +2,7 @@ package com.example.bot_diary.pages_handler.comands.command_handler;
 
 import com.example.bot_diary.models.Notification;
 import com.example.bot_diary.models.Task;
+import com.example.bot_diary.service.TaskService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -24,16 +25,27 @@ public class UpdateHandler {
     @Autowired
     private MessageService messageService;
 
-    public SendMessage sendTaskDetails(Task task, long chatId) {
+    @Autowired
+    private TaskService taskService;
+
+    public void handleTaskUpdate(String callbackData, long chatId) {
+        long taskId = Long.parseLong(callbackData.split("_")[2]);
+        Task task = taskService.findTaskById(taskId);
+        if (task != null) {
+            sendTaskDetails(task.getId(), chatId);
+        }
+    }
+
+    public void sendTaskDetails(Long taskId, long chatId) {
         try {
-            messageService.sendMessage(createMessageWithButtons(chatId, getDateInfo(task), createDateButtons(task)));
-            messageService.sendMessage(createMessageWithButtons(chatId, getTimeInfo(task), createTimeButtons(task)));
+            Task task = taskService.findTaskByIdWithNotifications(taskId);
+            // тепер відправляємо інформацію про дату і час в одному повідомленні
+            messageService.sendMessage(createMessageWithButtons(chatId, getDateTimeInfo(task), createDateTimeButtons(task)));
             messageService.sendMessage(createMessageWithButtons(chatId, getDescription(task), createDescriptionButtons(task)));
             messageService.sendMessage(createMessageWithButtons(chatId, getNotificationsInfo(task), createNotificationButtons(task)));
         } catch (TelegramApiException e) {
             log.error("Failed to send task details: ", e);
         }
-        return null;
     }
 
     private SendMessage createMessageWithButtons(long chatId, String info, List<List<InlineKeyboardButton>> buttons) {
@@ -48,12 +60,10 @@ public class UpdateHandler {
         return message;
     }
 
-    public static String getDateInfo(Task task) {
-        return "🗓Дата: " + (task.getDueDate() != null ? task.getDueDate().toLocalDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) : "Дата не встановлена");
-    }
-
-    public static String getTimeInfo(Task task) {
-        return "⏰Час: " + (task.getDueDate() != null ? task.getDueDate().toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")) : "Час не встановлений");
+    public static String getDateTimeInfo(Task task) {
+        String dateInfo = "🗓Дата: " + (task.getDueDate() != null ? task.getDueDate().toLocalDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) : "Дата не встановлена");
+        String timeInfo = "⏰Час: " + (task.getDueDate() != null ? task.getDueDate().toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")) : "Час не встановлений");
+        return dateInfo + "\n" + timeInfo;
     }
 
     public static String getDescription(Task task) {
@@ -71,26 +81,22 @@ public class UpdateHandler {
         return "Сповіщення відсутні";
     }
 
-
-    private static List<List<InlineKeyboardButton>> createDateButtons(Task task) {
-        return Arrays.asList(Arrays.asList(
-                createButton("🗓 Змінити дату", "CHANGE_DATE_" + task.getId()),
-                createButton("🗑 Видалити дату", "DELETE_DATE_" + task.getId())
-        ));
-    }
-
-    private static List<List<InlineKeyboardButton>> createTimeButtons(Task task) {
-        return Arrays.asList(Arrays.asList(
-                createButton("⏰ Змінити час", "CHANGE_TIME_" + task.getId()),
-                createButton("🗑 Видалити час", "DELETE_TIME_" + task.getId())
-        ));
+    private static List<List<InlineKeyboardButton>> createDateTimeButtons(Task task) {
+        return Arrays.asList(
+                Arrays.asList(
+                        createButton("🗓 Змінити дату та час", "CHANGE_DATETIME_" + task.getId()),
+                        createButton("🗑 Видалити дату та час", "DELETE_DATETIME_" + task.getId())
+                )
+        );
     }
 
     private static List<List<InlineKeyboardButton>> createDescriptionButtons(Task task) {
-        return Arrays.asList(Arrays.asList(
-                createButton("✏️ Змінити опис", "CHANGE_DESC_" + task.getId()),
-                createButton("🗑 Видалити опис", "DELETE_DESC_" + task.getId())
-        ));
+        // Видаляємо кнопку для видалення опису, залишаємо лише кнопку для зміни опису
+        return Collections.singletonList(
+                Collections.singletonList(
+                        createButton("✏️ Змінити опис", "CHANGE_DESC_" + task.getId())
+                )
+        );
     }
 
     private static List<List<InlineKeyboardButton>> createNotificationButtons(Task task) {

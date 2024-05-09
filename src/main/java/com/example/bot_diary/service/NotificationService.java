@@ -3,6 +3,7 @@ package com.example.bot_diary.service;
 import com.example.bot_diary.job.NotificationScheduler;
 import com.example.bot_diary.models.Notification;
 import com.example.bot_diary.repository.NotificationRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -10,8 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
+@Slf4j
 public class NotificationService {
 
     @Autowired
@@ -49,4 +52,30 @@ public class NotificationService {
             // Обробіть помилку адекватно
         }
     }
+
+    @Transactional
+    public Optional<Notification> findNotificationById(Long notificationId) {
+        Optional<Notification> notificatId = notificationRepository.findById(notificationId);
+        System.out.println("NotificationService notificatId =  " + notificatId);
+        return notificatId;
+    }
+
+    public void deleteNotification(Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId).orElse(null);
+        if (notification != null) {
+            try {
+                notificationRepository.delete(notification);
+                if (!notificationRepository.existsById(notificationId)) {
+                    log.info("Notification deleted successfully.");
+                } else {
+                    log.error("Failed to delete notification.");
+                }
+            } catch (Exception e) {
+                log.error("Exception when trying to delete notification: ", e);
+            }
+        } else {
+            log.warn("Notification not found with ID: {}", notificationId);
+        }
+    }
+
 }
