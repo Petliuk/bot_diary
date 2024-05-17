@@ -21,12 +21,14 @@ import java.util.stream.Collectors;
 @Component
 @Slf4j
 public class UpdateHandler {
-
     @Autowired
     private MessageService messageService;
 
     @Autowired
     private TaskService taskService;
+
+    @Autowired
+    private DateTimeUpdateHandler dateTimeUpdateHandler;
 
     public void handleTaskUpdate(String callbackData, long chatId) {
         long taskId = Long.parseLong(callbackData.split("_")[2]);
@@ -39,7 +41,6 @@ public class UpdateHandler {
     public void sendTaskDetails(Long taskId, long chatId) {
         try {
             Task task = taskService.findTaskByIdWithNotifications(taskId);
-            // тепер відправляємо інформацію про дату і час в одному повідомленні
             messageService.sendMessage(createMessageWithButtons(chatId, getDateTimeInfo(task), createDateTimeButtons(task)));
             messageService.sendMessage(createMessageWithButtons(chatId, getDescription(task), createDescriptionButtons(task)));
             messageService.sendMessage(createMessageWithButtons(chatId, getNotificationsInfo(task), createNotificationButtons(task)));
@@ -84,14 +85,12 @@ public class UpdateHandler {
     private static List<List<InlineKeyboardButton>> createDateTimeButtons(Task task) {
         return Arrays.asList(
                 Arrays.asList(
-                        createButton("🗓 Змінити дату та час", "CHANGE_DATETIME_" + task.getId()),
-                        createButton("🗑 Видалити дату та час", "DELETE_DATETIME_" + task.getId())
+                        createButton("🗓 Змінити дату та час", "CHANGE_DATETIME_" + task.getId())
                 )
         );
     }
 
     private static List<List<InlineKeyboardButton>> createDescriptionButtons(Task task) {
-        // Видаляємо кнопку для видалення опису, залишаємо лише кнопку для зміни опису
         return Collections.singletonList(
                 Collections.singletonList(
                         createButton("✏️ Змінити опис", "CHANGE_DESC_" + task.getId())
@@ -109,7 +108,7 @@ public class UpdateHandler {
             }
         } else {
             buttons.add(Collections.singletonList(
-                    createButton("🔔 Add Notification", "ADD_NOTIF_" + task.getId())
+                    createButton("🔔 Додати сповіщення ", "ADD_NOTIF_" + task.getId())
             ));
         }
         return buttons;
@@ -121,5 +120,4 @@ public class UpdateHandler {
         button.setCallbackData(callbackData);
         return button;
     }
-
 }

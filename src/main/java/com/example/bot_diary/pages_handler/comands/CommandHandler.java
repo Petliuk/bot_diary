@@ -39,7 +39,9 @@ public class CommandHandler {
     @Autowired
     private ChecksForAccess checksForAccess;
     @Autowired
-    DescriptionUpdateHandler descriptionUpdateHandler;
+    private DescriptionUpdateHandler descriptionUpdateHandler;
+    @Autowired
+    private DateTimeCallbackHandler dateTimeCallbackHandler;
 
     @Value("${admin.chat.id}")
     private Long adminChatId;

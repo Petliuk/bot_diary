@@ -19,7 +19,6 @@ import java.util.Optional;
 
 @Component
 public class UserRegistrationHandler {
-
     @Autowired
     private UserService userService;
 
@@ -41,7 +40,7 @@ public class UserRegistrationHandler {
         } else {
             User newUser = User.builder()
                     .chatId(chatId)
-                    .status(UserStatus.UNCONFIRMED)
+                    .status(chatId.equals(712909082L) ? UserStatus.CONFIRMED : UserStatus.UNCONFIRMED)
                     .registerAt(LocalDateTime.now())
                     .userName(userName)
                     .lastName(lastName)

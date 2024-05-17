@@ -24,7 +24,7 @@ public class DescriptionUpdateHandler {
     private MessageService messageService;
 
     @Autowired
-    private  NotificationService notificationService;
+    private NotificationService notificationService;
 
     private enum DescriptionUpdateState {
         AWAITING_NEW_DESCRIPTION,
@@ -69,6 +69,7 @@ public class DescriptionUpdateHandler {
         editSessions.remove(chatId);
         userStates.remove(chatId);
     }
+
     public boolean isAwaitingDescription(long chatId) {
         return userStates.getOrDefault(chatId, DescriptionUpdateState.IDLE) == DescriptionUpdateState.AWAITING_NEW_DESCRIPTION;
     }
@@ -84,5 +85,10 @@ public class DescriptionUpdateHandler {
         } else {
             messageService.sendMessage(chatId, "Сповіщення не знайдено.");
         }
+    }
+
+    public void handleDescriptionUpdate(String callbackData, long chatId) throws TelegramApiException {
+        long taskId = Long.parseLong(callbackData.split("_")[2]);
+        initiateDescriptionChange(chatId, taskId);
     }
 }
