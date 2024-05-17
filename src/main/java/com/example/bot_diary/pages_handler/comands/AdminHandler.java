@@ -6,7 +6,9 @@ import com.example.bot_diary.models.UserStatus;
 import com.example.bot_diary.pages_handler.comands.command_handler.MessageService;
 import com.example.bot_diary.service.UserService;
 import com.example.bot_diary.utilities.AdminButtons;
+import com.example.bot_diary.utilities.ChecksForAccess;
 import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -18,6 +20,7 @@ import java.util.Optional;
 
 @Component
 @Builder
+@Slf4j
 public class AdminHandler {
 
     @Autowired
@@ -26,6 +29,8 @@ public class AdminHandler {
     private MessageService messageService;
     @Autowired
     private UserService userRepository;
+    @Autowired
+    private ChecksForAccess checksForAccess;
 
     private List<RegistrationRequest> pendingRequests;
 
@@ -34,8 +39,7 @@ public class AdminHandler {
             showUnconfirmedUsers(update.getMessage().getChatId());
         }
     }
-   /* @Value("${admin.chat.id}")
-    private Long adminChatId;*/
+
     private boolean isAdmin(Long chatId) {
         return chatId.equals(712909082L);
     }
@@ -121,5 +125,33 @@ public class AdminHandler {
             messageService.sendMessage(message);
         }
     }
+
+    public void handleDeleteUser(String callbackData, long chatId) {
+        try {
+            String userIdStr = callbackData.substring("DELETE_USER_".length());
+            Long userId = Long.parseLong(userIdStr);
+            checksForAccess.deleteUser(userId, chatId);
+        } catch (NumberFormatException e) {
+            messageService.sendMessage(chatId, "Помилка: неправильний формат ID користувача.");
+            log.error("Error parsing user ID: ", e);
+        }
+    }
+/*    public void handleDeleteUser(String callbackData, long chatId) {
+        try {
+            String userIdStr = callbackData.substring("DELETE_USER_".length());
+            Long userId = Long.parseLong(userIdStr);
+            Optional<User> userOptional = userService.findUserByChatId(userId);
+
+            if (userOptional.isPresent()) {
+                userService.deleteUser(userOptional.get());
+                messageService.sendMessage(chatId, "Користувача видалено: " + userOptional.get().getFirstName() + " " + userOptional.get().getLastName());
+            } else {
+                messageService.sendMessage(chatId, "Помилка: користувач не знайдений.");
+            }
+        } catch (NumberFormatException e) {
+            messageService.sendMessage(chatId, "Помилка: неправильний формат ID користувача.");
+            log.error("Error parsing user ID: ", e);
+        }
+    }*/
 
 }
