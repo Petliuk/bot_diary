@@ -40,4 +40,7 @@ public class Task {
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Notification> notifications;
+
+    @Column(name = "scheduled_time", columnDefinition = "TIMESTAMP")
+    private LocalDateTime scheduledTime;
 }

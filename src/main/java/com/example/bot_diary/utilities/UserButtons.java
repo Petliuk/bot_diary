@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -90,8 +91,13 @@ public class UserButtons {
 
     private static String formatNotificationDetails(List<Notification> notifications) {
         StringBuilder details = new StringBuilder();
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
         for (Notification notification : notifications) {
-            details.append(String.format("🔔 Notification at %s\n", notification.getNotificationTime()));
+            String date = notification.getNotificationTime().toLocalDate().format(dateFormatter);
+            String time = notification.getNotificationTime().toLocalTime().format(timeFormatter);
+            details.append(String.format("🔔 Сповіщення: %s о %s\n", date, time));
         }
         return details.toString();
     }
@@ -100,7 +106,7 @@ public class UserButtons {
         InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
         markupInline.setKeyboard(rows);
 
-        String messageText = formatTaskText(task) + (!notificationDetails.isEmpty() ? "\nNotifications:\n" + notificationDetails : "");
+        String messageText = formatTaskText(task) + (!notificationDetails.isEmpty() ? "\nСповіщення:\n" + notificationDetails : "");
 
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));

@@ -25,7 +25,6 @@ import java.util.Optional;
 @Slf4j
 public class NewTaskCommandHandler {
 
-
     @Autowired
     private UserService userService;
     @Autowired
@@ -154,13 +153,13 @@ public class NewTaskCommandHandler {
         task.setUser(user);
         task.setStatus(TaskStatus.NOT_COMPLETED);
         task.setDueDate(dueDateTime);
+        task.setScheduledTime(dueDateTime);
 
         taskService.saveTask(task);
 
         selectedDates.remove(chatId);
         taskDescriptions.remove(chatId);
         userStates.put(chatId, UserState.NONE);
-        messageService.sendMessage(chatId, "Ваша задача збережена. ");
+        messageService.sendMessage(chatId, "Ваша задача збережена з часом сповіщення.");
     }
-
 }

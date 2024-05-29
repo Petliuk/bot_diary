@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
-
     List<Task> findByUserChatIdAndStatus(Long userChatId, TaskStatus status);
 
     @Query("SELECT t FROM Task t WHERE t.user.chatId = :userId AND t.dueDate BETWEEN :startDateTime AND :endDateTime")
@@ -19,8 +18,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime,
             @Param("userId") Long userId);
-
-
 
     @Query("SELECT t FROM Task t WHERE t.user.chatId = :userId AND t.dueDate BETWEEN :startOfDay AND :endOfDay")
     List<Task> findTasksForDay(
@@ -33,8 +30,15 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     @Query("SELECT COUNT(t) FROM Task t WHERE t.user.chatId = :userId")
     long countByUserChatId(@Param("userId") Long userId);
+
     Optional<Task> findFirstByUserChatIdOrderByDueDateDesc(Long chatId);
+
     @Query("SELECT t FROM Task t LEFT JOIN FETCH t.notifications WHERE t.id = :id")
     Optional<Task> findByIdWithNotifications(@Param("id") Long id);
-}
 
+    @Query("SELECT t FROM Task t WHERE t.dueDate < :now AND t.status = 'NOT_COMPLETED'")
+    List<Task> findTasksDue(@Param("now") LocalDateTime now);
+
+    @Query("SELECT t FROM Task t WHERE t.scheduledTime <= :now AND t.status = 'NOT_COMPLETED'")
+    List<Task> findTasksScheduledForNow(@Param("now") LocalDateTime now);
+}

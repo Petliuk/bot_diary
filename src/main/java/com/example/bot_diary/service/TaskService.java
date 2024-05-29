@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 @Service
 public class TaskService {
 
+
     @Autowired
     private TaskRepository taskRepository;
 
@@ -78,8 +79,19 @@ public class TaskService {
             saveTask(task);
         }
     }
-    @Transactional(readOnly = true)
+
+    @Transactional
     public Task findTaskByIdWithNotifications(Long taskId) {
         return taskRepository.findByIdWithNotifications(taskId).orElseThrow(() -> new RuntimeException("Task not found"));
+    }
+
+    @Transactional
+    public List<Task> findOverdueTasks(LocalDateTime now) {
+        return taskRepository.findTasksDue(now);
+    }
+
+    @Transactional
+    public List<Task> findTasksScheduledForNow(LocalDateTime now) {
+        return taskRepository.findTasksScheduledForNow(now);
     }
 }

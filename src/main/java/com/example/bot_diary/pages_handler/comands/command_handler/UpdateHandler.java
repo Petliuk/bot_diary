@@ -73,11 +73,14 @@ public class UpdateHandler {
 
     public static String getNotificationsInfo(Task task) {
         if (task.getNotifications() != null && !task.getNotifications().isEmpty()) {
-            return "🔔Сповіщення: " + task.getNotifications().stream()
-                    .map(notification -> notification.getNotificationTime() != null ?
-                            notification.getNotificationTime().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")) :
-                            "Час сповіщення не встановлений")
-                    .collect(Collectors.joining("\n"));
+            StringBuilder notificationsInfo = new StringBuilder("🔔Сповіщення:\n");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+            for (Notification notification : task.getNotifications()) {
+                notificationsInfo.append("🔔 Сповіщення: ")
+                        .append(notification.getNotificationTime() != null ? notification.getNotificationTime().format(formatter) : "Час сповіщення не встановлений")
+                        .append("\n");
+            }
+            return notificationsInfo.toString();
         }
         return "Сповіщення відсутні";
     }
